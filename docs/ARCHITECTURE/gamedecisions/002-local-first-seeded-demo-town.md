@@ -9,7 +9,7 @@ Accepted
 ## Context
 The README positions VillageSim as a local-first starter with a runnable Next.js UI, mock authoritative town state, a mock planner, and a local `/api/tick` endpoint. It explicitly tells first-time users to keep `MODEL_MOCK=true` and visit `/town/demo-town`.
 
-`lib/mockData.ts` defines `DEFAULT_MOCK_TOWN_ID = "demo-town"` and builds seeded in-memory town state with deterministic randomization from a seed. `pages/town/[id].tsx` reads from `ensureLocalMockTownState`, polls the local tick API, and describes the route as a shared local-first backend mock. The same page also notes that GitHub OAuth is still a placeholder.
+`lib/mockData.ts` defines `DEFAULT_MOCK_TOWN_ID = "demo-town"` and builds seeded in-memory town state with deterministic randomization from a seed. The App Router town route under `app/town/[id]/` reads from `ensureLocalMockTownState`, polls the local tick API, and describes the route as a shared local-first backend mock. The same route also notes that GitHub OAuth is still a placeholder.
 
 This repo still contains Convex-style and OAuth-oriented scaffolding, but the working path today is the seeded local town.
 

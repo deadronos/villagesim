@@ -4,7 +4,7 @@
 Use a Next.js pages-router local-first starter on Next 16 and React 19
 
 ## Status
-Accepted
+Superseded by ADR 006
 
 ## Context
 The current application is a small starter intended to stay runnable before real backend services are wired. `package.json` pins the stack to Next.js `^16.2.1`, React `^19.2.4`, React DOM `^19.2.4`, TypeScript, and ESLint. The app is implemented with the Pages Router (`pages/index.tsx`, `pages/town/[id].tsx`, `pages/api/tick.ts`) rather than the App Router, and `README.md` describes the project as a local-first starter.

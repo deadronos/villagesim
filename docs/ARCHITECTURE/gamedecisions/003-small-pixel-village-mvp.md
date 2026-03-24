@@ -14,7 +14,7 @@ The current code intentionally stays small:
 - `lib/mockData.ts` seeds five named villagers with fixed roles.
 - `components/TownCanvas.tsx` draws a simple canvas map with tile colors and tiny NPC sprites.
 - `components/Town.tsx` emphasizes summaries: activity cards, aggregate bars, an activity feed, and a roster with short per-NPC text.
-- `pages/town/[id].tsx` generates human-readable labels such as weather, time-of-day, current action, mood, and short summaries.
+- `app/town/[id]/townPresentation.ts` generates human-readable labels such as weather, time-of-day, current action, mood, and short summaries.
 
 ## Decision
 Keep the playable/demo scope deliberately small and legible:

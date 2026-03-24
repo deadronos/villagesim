@@ -1,16 +1,9 @@
-import Head from "next/head";
-import type { GetServerSideProps, InferGetServerSidePropsType } from "next";
-import { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
-
-import Town from "../../components/Town";
-import type { TileType, TownData, TownNpc } from "../../components/TownCanvas";
-import { ensureLocalMockTownState, type CreateMockTownOptions } from "../../lib/mockData";
-import type { NpcState, TownEvent, TownState } from "../../lib/types";
+import type { TileType, TownData, TownNpc } from "../../../components/TownCanvas";
+import type { NpcState, TownEvent, TownState } from "../../../lib/types";
 
 const WEATHER_LABELS = ["Clear skies", "Soft rain", "Cool breeze", "Lantern glow"];
 
-function normalizeTownId(value: string | string[] | undefined) {
+export function normalizeTownId(value: string | string[] | undefined) {
   const raw = Array.isArray(value) ? value[0] : value;
 
   return (
@@ -21,7 +14,7 @@ function normalizeTownId(value: string | string[] | undefined) {
   );
 }
 
-function titleizeTownId(townId: string) {
+export function titleizeTownId(townId: string) {
   return townId
     .split("-")
     .filter(Boolean)
@@ -208,7 +201,7 @@ function mapNpc(npc: NpcState): TownNpc {
   };
 }
 
-function mapTownData(town: TownState): TownData {
+export function mapTownData(town: TownState): TownData {
   return {
     activityFeed: town.events.slice(-6).reverse().map((event) => ({
       id: event.id,
@@ -229,128 +222,4 @@ function mapTownData(town: TownState): TownData {
     timeOfDay: timeOfDayLabel(town.tick),
     weather: weatherLabelForTown(town),
   };
-}
-
-async function fetchTick(townId: string, options: { reset?: boolean } = {}): Promise<TownState> {
-  const params = new URLSearchParams({ townId, count: "1" });
-  if (options.reset) {
-    params.set("reset", "true");
-  }
-
-  const response = await fetch(`/api/tick?${params.toString()}`);
-  const payload = (await response.json()) as { error?: string; ok?: boolean; town?: TownState };
-
-  if (!response.ok || !payload.ok || !payload.town) {
-    throw new Error(payload.error ?? "Unable to load local town data.");
-  }
-
-  return payload.town;
-}
-
-export const getServerSideProps: GetServerSideProps<{
-  initialTown: TownState;
-  initialTownId: string;
-}> = async (context) => {
-  const initialTownId = normalizeTownId(context.params?.id);
-  const options: CreateMockTownOptions = { id: initialTownId };
-
-  return {
-    props: {
-      initialTown: ensureLocalMockTownState(options),
-      initialTownId,
-    },
-  };
-};
-
-export default function TownPage({
-  initialTown,
-  initialTownId,
-}: InferGetServerSidePropsType<typeof getServerSideProps>) {
-  const router = useRouter();
-  const [townState, setTownState] = useState<TownState>(initialTown);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const townId = useMemo(
-    () => normalizeTownId(router.query.id ?? initialTownId),
-    [initialTownId, router.query.id],
-  );
-  const town = useMemo(() => mapTownData(townState), [townState]);
-
-  useEffect(() => {
-    setTownState(initialTown);
-    setError(null);
-  }, [initialTown]);
-
-  useEffect(() => {
-    let cancelled = false;
-    let inFlight = false;
-
-    const runTick = async () => {
-      if (inFlight) {
-        return;
-      }
-
-      inFlight = true;
-      try {
-        const nextTown = await fetchTick(townId);
-        if (!cancelled) {
-          setTownState(nextTown);
-          setError(null);
-        }
-      } catch (caughtError) {
-        if (!cancelled) {
-          setError(caughtError instanceof Error ? caughtError.message : "Unable to advance local town data.");
-        }
-      } finally {
-        inFlight = false;
-      }
-    };
-
-    const interval = window.setInterval(() => {
-      void runTick();
-    }, 5000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [townId]);
-
-  return (
-    <>
-      <Head>
-        <title>{`${titleizeTownId(townId)} | VillageSim`}</title>
-        <meta
-          content="Explore a tiny seeded village with shared mock NPC state and a local-first starter flow."
-          name="description"
-        />
-      </Head>
-
-      <Town
-        error={error}
-        isLoading={isLoading}
-        onOpenTown={async (nextTownId) => {
-          if (nextTownId !== townId) {
-            void router.push(`/town/${encodeURIComponent(nextTownId)}`);
-            return;
-          }
-
-          setIsLoading(true);
-          setError(null);
-
-          try {
-            const nextTown = await fetchTick(nextTownId, { reset: true });
-            setTownState(nextTown);
-          } catch (caughtError) {
-            setError(caughtError instanceof Error ? caughtError.message : "Unable to reset local town data.");
-          } finally {
-            setIsLoading(false);
-          }
-        }}
-        town={town}
-        townId={townId}
-      />
-    </>
-  );
 }

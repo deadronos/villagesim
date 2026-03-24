@@ -10,7 +10,7 @@ Accepted
 The simulation logic is centralized in `lib/sim_engine.ts`, which exposes helpers such as `runLocalMockTick`, `runSimulationTick`, `collectNpcsNeedingDecision`, `applyNpcActionToTown`, and `assignPlanToTown`.
 
 Multiple runtime surfaces already delegate to that shared logic:
-- `pages/api/tick.ts` advances town state by calling `runLocalMockTick`.
+- `app/api/tick/route.ts` advances town state by calling `runLocalMockTick`.
 - `workers/worker_helpers.ts` exposes worker-friendly helpers that reuse `runLocalMockTick`, `collectNpcsNeedingDecision`, `applyNpcActionToTown`, and `assignPlanToTown`.
 - The Convex-style stubs in `convex/functions/*.ts` and `convex/queries/*.ts` call the same mock data and simulation helpers instead of defining separate behavior.
 

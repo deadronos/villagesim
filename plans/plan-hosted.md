@@ -31,7 +31,7 @@ A PAT must not become the app's primary login mechanism.
 
 ### 2. Migrate to App Router as part of the hosted effort
 
-The current app uses the Pages Router, but for the hosted/authenticated build we will migrate to App Router and move route surfaces incrementally:
+Phase 1 migrates the route surfaces to App Router while keeping the hosted/authenticated work incremental:
 
 - `pages/index.tsx` -> `app/page.tsx`
 - `pages/town/[id].tsx` -> `app/town/[id]/page.tsx`
