@@ -1,0 +1,471 @@
+.container {
+  min-height: 100vh;
+  padding: 32px 24px 48px;
+  background:
+    radial-gradient(circle at top, rgba(247, 214, 109, 0.12), transparent 38%),
+    linear-gradient(180deg, #132119 0%, #0b120d 100%);
+  color: #f4efd8;
+}
+
+.hero {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.9fr);
+  align-items: start;
+  margin: 0 auto 24px;
+  max-width: 1240px;
+}
+
+.heroCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #f7d66d;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2.2rem, 4vw, 4rem);
+  line-height: 0.95;
+}
+
+.subtitle,
+.helperText,
+.muted,
+.rosterMeta,
+.canvasHint,
+.notesList,
+.feedItem,
+.seedPill {
+  color: rgba(244, 239, 216, 0.78);
+}
+
+.subtitle,
+.helperText,
+.canvasHint {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tag,
+.badge,
+.seedPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(244, 239, 216, 0.16);
+  background: rgba(244, 239, 216, 0.08);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+}
+
+.panel {
+  border: 1px solid rgba(244, 239, 216, 0.12);
+  background: rgba(14, 24, 18, 0.82);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.25);
+  border-radius: 20px;
+  padding: 20px;
+}
+
+.panelTitle,
+.placeholderTitle {
+  margin: 0;
+}
+
+.loginPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.loginControls,
+.loginForm,
+.githubPlaceholder,
+.sectionHeading,
+.rosterHeader,
+.statRow,
+.inlineField {
+  display: flex;
+  gap: 12px;
+}
+
+.loginControls,
+.githubPlaceholder,
+.sectionHeading,
+.rosterHeader {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.loginForm {
+  flex-direction: column;
+}
+
+.fieldLabel {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.inlineField {
+  align-items: center;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid rgba(244, 239, 216, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: #f4efd8;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font: inherit;
+}
+
+.input:focus {
+  outline: 2px solid rgba(247, 214, 109, 0.55);
+  outline-offset: 2px;
+}
+
+.button,
+.buttonGhost,
+.buttonMuted {
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
+}
+
+.button,
+.buttonGhost {
+  padding: 12px 16px;
+}
+
+.button {
+  background: linear-gradient(180deg, #f7d66d 0%, #d7a73d 100%);
+  color: #1a1304;
+}
+
+.buttonGhost {
+  background: rgba(244, 239, 216, 0.08);
+  color: #f4efd8;
+  border: 1px solid rgba(244, 239, 216, 0.16);
+}
+
+.buttonMuted {
+  padding: 10px 14px;
+  background: rgba(244, 239, 216, 0.06);
+  color: rgba(244, 239, 216, 0.52);
+  cursor: not-allowed;
+}
+
+.button:not(:disabled):hover,
+.buttonGhost:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.button:disabled,
+.buttonGhost:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.layout {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+  grid-template-areas:
+    "canvas side"
+    "roster side";
+  margin: 0 auto;
+  max-width: 1240px;
+}
+
+.canvasCard {
+  grid-area: canvas;
+}
+
+.aside {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.roster {
+  grid-area: roster;
+}
+
+.canvasFrame {
+  overflow: auto;
+  margin-top: 16px;
+  border-radius: 16px;
+  background: #0f1812;
+  border: 1px solid rgba(244, 239, 216, 0.08);
+  padding: 12px;
+}
+
+.canvas {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+}
+
+.legendItem,
+.feedItem,
+.npcStats {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.legendSwatch,
+.feedTone {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.2);
+}
+
+.legendGrass {
+  background: #6cbe5f;
+}
+
+.legendPath {
+  background: #c59b5d;
+}
+
+.legendWater {
+  background: #4a8fe7;
+}
+
+.legendHome {
+  background: #b86b48;
+}
+
+.legendField {
+  background: #8bc34a;
+}
+
+.summaryGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+}
+
+.summaryCard {
+  border: 1px solid rgba(244, 239, 216, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summaryValue {
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.summaryLabel {
+  color: rgba(244, 239, 216, 0.72);
+  text-transform: capitalize;
+}
+
+.statBars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.statRow {
+  align-items: center;
+}
+
+.statLabel {
+  width: 64px;
+  font-weight: 600;
+}
+
+.statTrack {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(244, 239, 216, 0.08);
+  overflow: hidden;
+}
+
+.statFill {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.energyFill {
+  background: linear-gradient(90deg, #70e289 0%, #2fbf71 100%);
+}
+
+.hungerFill {
+  background: linear-gradient(90deg, #ffd166 0%, #ef9b20 100%);
+}
+
+.socialFill {
+  background: linear-gradient(90deg, #7bdff2 0%, #4d9de0 100%);
+}
+
+.feedList,
+.rosterList,
+.notesList {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+}
+
+.feedList,
+.rosterList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.feedItem {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(244, 239, 216, 0.08);
+}
+
+.feedItem:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.feedToneGood {
+  background: #70e289;
+}
+
+.feedToneNeutral {
+  background: #7bdff2;
+}
+
+.feedToneAlert {
+  background: #ffd166;
+}
+
+.rosterItem {
+  border: 1px solid rgba(244, 239, 216, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.rosterHeader {
+  margin-bottom: 8px;
+}
+
+.rosterHeader h3 {
+  margin: 0;
+}
+
+.rosterMeta,
+.rosterSummary {
+  margin: 0;
+}
+
+.rosterSummary {
+  line-height: 1.5;
+}
+
+.npcStats {
+  flex-wrap: wrap;
+  margin-top: 14px;
+  color: rgba(244, 239, 216, 0.75);
+  font-size: 0.92rem;
+}
+
+.loadingState,
+.emptyState,
+.emptyStateInline,
+.notesBlock {
+  margin: 0 auto 20px;
+  max-width: 1240px;
+}
+
+.emptyStateInline {
+  margin-top: 16px;
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(244, 239, 216, 0.76);
+}
+
+.notesBlock {
+  margin-top: 20px;
+  border-top: 1px solid rgba(244, 239, 216, 0.08);
+  padding-top: 16px;
+}
+
+.notesList {
+  display: grid;
+  gap: 8px;
+}
+
+@media (max-width: 980px) {
+  .hero,
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .layout {
+    grid-template-areas:
+      "canvas"
+      "side"
+      "roster";
+  }
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 20px 14px 40px;
+  }
+
+  .inlineField,
+  .githubPlaceholder,
+  .loginControls,
+  .rosterHeader,
+  .sectionHeading,
+  .statRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .statLabel {
+    width: auto;
+  }
+}

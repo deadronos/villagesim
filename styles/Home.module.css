@@ -1,0 +1,116 @@
+.page {
+  width: min(960px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 4rem 0 5rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.hero,
+.panel {
+  background: var(--background-elevated);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+}
+
+.hero {
+  padding: 2rem;
+}
+
+.panel {
+  padding: 1.5rem 2rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--primary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  max-width: 14ch;
+  font-size: clamp(2.25rem, 6vw, 4.5rem);
+  line-height: 0.95;
+}
+
+.description {
+  max-width: 62ch;
+  margin: 1.25rem 0 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.actions {
+  margin-top: 2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.875rem;
+}
+
+.primaryAction,
+.secondaryAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.85rem 1.2rem;
+  border-radius: 999px;
+  font-weight: 600;
+  transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.primaryAction {
+  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+  color: #042013;
+}
+
+.secondaryAction {
+  border: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+.primaryAction:hover,
+.secondaryAction:hover {
+  transform: translateY(-1px);
+}
+
+.panel h2 {
+  margin: 0 0 0.9rem;
+  font-size: 1.2rem;
+}
+
+.list {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.note {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .page {
+    width: min(100% - 1rem, 960px);
+    padding: 1rem 0 3rem;
+  }
+
+  .hero,
+  .panel {
+    border-radius: 20px;
+  }
+
+  .hero,
+  .panel {
+    padding: 1.25rem;
+  }
+}
