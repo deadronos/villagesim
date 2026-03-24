@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import styles from "../styles/Town.module.css";

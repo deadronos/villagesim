@@ -23,3 +23,4 @@ Each ADR uses a numbered filename such as `001-description.md` so new decisions 
 - `technicaldecisions/003-use-in-memory-town-state-before-real-convex.md`
 - `technicaldecisions/004-keep-town-state-json-safe-for-ssr-and-api-boundaries.md`
 - `technicaldecisions/005-use-a-mock-planner-with-zod-validated-structured-payloads.md`
+- `technicaldecisions/006-use-the-app-router-as-the-hosted-foundation.md`

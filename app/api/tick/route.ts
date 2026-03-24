@@ -1,12 +1,14 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+import { NextResponse } from "next/server";
 
 import {
   DEFAULT_MOCK_TOWN_ID,
   ensureLocalMockTownState,
   getLocalMockTownState,
   resetLocalMockTown,
-} from "../../lib/mockData";
-import { runLocalMockTick } from "../../lib/sim_engine";
+} from "../../../lib/mockData";
+import { runLocalMockTick } from "../../../lib/sim_engine";
+
+export const dynamic = "force-dynamic";
 
 const MAX_BATCH_TICKS = 5;
 
@@ -33,16 +35,34 @@ function parseTickCount(value: unknown): number {
   return Math.min(MAX_BATCH_TICKS, parsed);
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  res.setHeader("Cache-Control", "no-store, max-age=0");
+function jsonResponse(body: unknown, status = 200) {
+  const response = NextResponse.json(body, { status });
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+  return response;
+}
 
-  if (req.method && !["GET", "POST"].includes(req.method)) {
-    res.setHeader("Allow", "GET, POST");
-    return res.status(405).json({ ok: false, error: "Method not allowed" });
-  }
+function readQuerySource(request: Request) {
+  const searchParams = new URL(request.url).searchParams;
 
+  return {
+    count: searchParams.get("count"),
+    reset: searchParams.get("reset"),
+    seed: searchParams.get("seed"),
+    townId: searchParams.get("townId"),
+  };
+}
+
+async function readBodySource(request: Request) {
   try {
-    const source = req.method === "POST" ? req.body ?? {} : req.query;
+    const parsed = await request.json();
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function handleTick(source: Record<string, unknown>) {
+  try {
     const townId = firstString(source.townId) ?? DEFAULT_MOCK_TOWN_ID;
     const seed = firstString(source.seed);
     const reset = parseBoolean(source.reset);
@@ -60,7 +80,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const latestTown = results[results.length - 1]?.town ?? getLocalMockTownState(townId);
-    return res.status(200).json({
+
+    return jsonResponse({
       ok: true,
       mode: "mock-local",
       townId,
@@ -72,6 +93,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown tick failure";
-    return res.status(500).json({ ok: false, mode: "mock-local", error: message });
+    return jsonResponse({ ok: false, mode: "mock-local", error: message }, 500);
   }
+}
+
+export async function GET(request: Request) {
+  return handleTick(readQuerySource(request));
+}
+
+export async function POST(request: Request) {
+  return handleTick(await readBodySource(request));
 }

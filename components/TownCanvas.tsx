@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useMemo, useRef } from "react";
 
 export type TileType = "grass" | "path" | "water" | "field" | "home" | "tree" | "plaza";

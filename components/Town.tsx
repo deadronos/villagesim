@@ -1,3 +1,5 @@
+"use client";
+
 import { useMemo } from "react";
 
 import styles from "../styles/Town.module.css";

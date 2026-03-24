@@ -4,7 +4,7 @@ VillageSim is a local-first starter for a 2D village simulation MVP. It includes
 
 ## What is in this starter?
 
-- Next.js pages-router app scaffold with TypeScript enabled.
+- Next.js App Router app scaffold with TypeScript enabled.
 - `/town/[id]` demo route that renders a seeded pixel village and NPC roster.
 - Shared mock town state and simulation helpers in `lib/`.
 - A local-first `/api/tick` endpoint for advancing the simulation.
@@ -56,7 +56,7 @@ The provided `.env.example` includes placeholders for:
 - `lib/npc_decision.ts` handles fast weighted decisions with injectable RNG.
 - `lib/model_proxy.ts` provides a zod-validated mock planner and a placeholder remote model path.
 - `lib/sim_engine.ts` applies actions, assigns plans, and advances ticks.
-- `pages/api/tick.ts` advances the local town and returns structured JSON for the UI.
+- `app/api/tick/route.ts` advances the local town and returns structured JSON for the UI.
 - `workers/tick.ts` and `workers/worker_helpers.ts` exercise the same simulation logic outside the request path.
 
 ## Next steps
