@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import Town from "../../../components/Town";
+import type { SessionUser } from "../../../lib/session";
 import type { TownState } from "../../../lib/types";
 import { mapTownData } from "./townPresentation";
 
 interface TownPageClientProps {
   initialTown: TownState;
   initialTownId: string;
+  sessionUser?: SessionUser | null;
 }
 
 async function fetchTick(townId: string, options: { reset?: boolean } = {}): Promise<TownState> {
@@ -28,7 +30,7 @@ async function fetchTick(townId: string, options: { reset?: boolean } = {}): Pro
   return payload.town;
 }
 
-export default function TownPageClient({ initialTown, initialTownId }: TownPageClientProps) {
+export default function TownPageClient({ initialTown, initialTownId, sessionUser }: TownPageClientProps) {
   const router = useRouter();
   const [townState, setTownState] = useState<TownState>(initialTown);
   const [isLoading, setIsLoading] = useState(false);
@@ -100,6 +102,7 @@ export default function TownPageClient({ initialTown, initialTownId }: TownPageC
           setIsLoading(false);
         }
       }}
+      sessionUser={sessionUser}
       town={town}
       townId={townId}
     />
