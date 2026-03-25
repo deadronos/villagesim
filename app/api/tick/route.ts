@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 import {
   DEFAULT_MOCK_TOWN_ID,
@@ -9,7 +9,8 @@ import {
   resetLocalMockTownFromExisting,
 } from "../../../lib/mockData";
 import { getSessionFromCookieHeader } from "../../../lib/session";
-import { isHostedConvexModeEnabled, runAuthoritativeTick } from "../../../lib/authoritativeTownStore";
+import { dispatchHostedPlannerQueue, isHostedConvexModeEnabled, runAuthoritativeTick } from "../../../lib/authoritativeTownStore";
+import { hasQueuedPlannerRequests } from "../../../lib/plannerExecution";
 import { runLocalMockTick } from "../../../lib/sim_engine";
 import { assertCanWriteTown, isTownAccessError, TownAccessError } from "../../../lib/townAccess";
 
@@ -89,7 +90,7 @@ async function handleTick(request: Request, source: Record<string, unknown>) {
         townId,
       });
 
-      return jsonResponse({
+      const response = jsonResponse({
         ok: true,
         mode: "convex-hosted",
         townId,
@@ -99,6 +100,21 @@ async function handleTick(request: Request, source: Record<string, unknown>) {
         npcResults: result.npcResults,
         events: result.town.events.slice(-30),
       });
+
+      if (hasQueuedPlannerRequests(result.town)) {
+        after(async () => {
+          try {
+            await dispatchHostedPlannerQueue({
+              callerLogin,
+              townId,
+            });
+          } catch (error) {
+            console.error("Hosted planner queue dispatch failed", error);
+          }
+        });
+      }
+
+      return response;
     }
 
     const existingTown = findLocalMockTownState(townId);

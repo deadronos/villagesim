@@ -31,14 +31,14 @@ function clampNeed(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function pushEvent(town: TownState, event: TownEvent): void {
+export function appendTownEvent(town: TownState, event: TownEvent): void {
   town.events.push(event);
   if (town.events.length > 200) {
     town.events = town.events.slice(-200);
   }
 }
 
-function makeEventId(town: TownState, npcId: string | undefined, suffix: string): string {
+export function createTownEventId(town: TownState, npcId: string | undefined, suffix: string): string {
   return `${town.id}:${town.tick}:${npcId ?? "town"}:${suffix}:${town.events.length + 1}`;
 }
 
@@ -170,8 +170,8 @@ export function applyNpcActionToTown(town: TownState, npcId: string, action: Npc
   npc.currentAction = normalizeAction(town, action);
   npc.lastDecisionTick = town.tick;
   touchNpcMemory(npc, `Started ${npc.currentAction.type}`);
-  pushEvent(town, {
-    id: makeEventId(town, npcId, "action-started"),
+  appendTownEvent(town, {
+    id: createTownEventId(town, npcId, "action-started"),
     tick: town.tick,
     at: town.now,
     npcId,
@@ -191,8 +191,8 @@ export function assignPlanToTown(town: TownState, npcId: string, plan: NpcPlan):
   npc.currentAction = null;
   npc.lastDecisionTick = town.tick;
   touchNpcMemory(npc, `Assigned plan ${plan.intent}`);
-  pushEvent(town, {
-    id: makeEventId(town, npcId, "plan-assigned"),
+  appendTownEvent(town, {
+    id: createTownEventId(town, npcId, "plan-assigned"),
     tick: town.tick,
     at: town.now,
     npcId,
@@ -203,10 +203,18 @@ export function assignPlanToTown(town: TownState, npcId: string, plan: NpcPlan):
   return npc;
 }
 
+export function startNpcPlanIfIdle(town: TownState, npcId: string): NpcAction | null {
+  const npc = town.npcs[npcId];
+  if (!npc || npc.currentAction || !npc.plan || npc.plan.status === "done") {
+    return null;
+  }
+  return beginNextPlanStep(town, npc);
+}
+
 function completeCurrentAction(town: TownState, npc: NpcState, action: NpcAction): void {
   touchNpcMemory(npc, `Completed ${action.type}`);
-  pushEvent(town, {
-    id: makeEventId(town, npc.id, "action-complete"),
+  appendTownEvent(town, {
+    id: createTownEventId(town, npc.id, "action-complete"),
     tick: town.tick,
     at: town.now,
     npcId: npc.id,
@@ -217,8 +225,8 @@ function completeCurrentAction(town: TownState, npc: NpcState, action: NpcAction
   if (npc.plan) {
     completePlanStep(npc, action, town.now);
     if (npc.plan.status === "done") {
-      pushEvent(town, {
-        id: makeEventId(town, npc.id, "plan-complete"),
+      appendTownEvent(town, {
+        id: createTownEventId(town, npc.id, "plan-complete"),
         tick: town.tick,
         at: town.now,
         npcId: npc.id,
@@ -364,9 +372,14 @@ export async function runSimulationTick(
   let actionsStarted = 0;
   let actionsCompleted = 0;
   let plansAssigned = 0;
+  let plannerRequests = 0;
+  let queuedPlannerRequests = 0;
+  let plannerFallbacks = 0;
+  let plannerLatencyTotal = 0;
+  const plannerSourceCounts: SimulationTickResult["summary"]["planner"]["sourceCounts"] = {};
 
-  pushEvent(town, {
-    id: makeEventId(town, undefined, "tick"),
+  appendTownEvent(town, {
+    id: createTownEventId(town, undefined, "tick"),
     tick: town.tick,
     at: town.now,
     kind: "tick",
@@ -400,8 +413,8 @@ export async function runSimulationTick(
     const env = getEnvironmentForNpc(town, npc.id);
     const decision = weightedDecision(npc, env, { rng });
     npcResult.decision = decision;
-    pushEvent(town, {
-      id: makeEventId(town, npc.id, "decision"),
+    appendTownEvent(town, {
+      id: createTownEventId(town, npc.id, "decision"),
       tick: town.tick,
       at: town.now,
       npcId: npc.id,
@@ -419,16 +432,27 @@ export async function runSimulationTick(
     }
 
     const plannerResult = await planner({
+      townId: town.id,
+      tick: town.tick,
       npc: town.npcs[npc.id],
       env,
       intent: decision.planIntent,
       now: town.now,
       rng,
     });
+    plannerRequests += 1;
+    plannerLatencyTotal += plannerResult.latencyMs;
+    plannerSourceCounts[plannerResult.source] = (plannerSourceCounts[plannerResult.source] ?? 0) + 1;
+    if (plannerResult.source === "queued-placeholder") {
+      queuedPlannerRequests += 1;
+    }
+    if (plannerResult.fallbackReason) {
+      plannerFallbacks += 1;
+    }
     assignPlanToTown(town, npc.id, plannerResult.plan);
     plansAssigned += 1;
     npcResult.assignedPlanId = plannerResult.plan.id;
-    npcResult.notes.push(`Assigned ${plannerResult.source} plan`);
+    npcResult.notes.push(`Assigned ${plannerResult.source} plan (${plannerResult.latencyMs}ms)`);
     const startedAction = beginNextPlanStep(town, town.npcs[npc.id]);
     if (startedAction) {
       actionsStarted += 1;
@@ -444,6 +468,13 @@ export async function runSimulationTick(
       actionsStarted,
       actionsCompleted,
       plansAssigned,
+      planner: {
+        requested: plannerRequests,
+        queuedRequests: queuedPlannerRequests,
+        fallbackCount: plannerFallbacks,
+        averageLatencyMs: plannerRequests > 0 ? Math.round(plannerLatencyTotal / plannerRequests) : null,
+        sourceCounts: plannerSourceCounts,
+      },
     },
     npcResults,
     events: town.events.slice(-25),
