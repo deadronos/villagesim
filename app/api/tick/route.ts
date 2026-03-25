@@ -9,8 +9,9 @@ import {
   resetLocalMockTownFromExisting,
 } from "../../../lib/mockData";
 import { getSessionFromCookieHeader } from "../../../lib/session";
+import { isHostedConvexModeEnabled, runAuthoritativeTick } from "../../../lib/authoritativeTownStore";
 import { runLocalMockTick } from "../../../lib/sim_engine";
-import { assertCanWriteTown, TownAccessError } from "../../../lib/townAccess";
+import { assertCanWriteTown, isTownAccessError, TownAccessError } from "../../../lib/townAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -45,8 +46,8 @@ function jsonResponse(body: unknown, status = 200) {
   return response;
 }
 
-function getCallerLogin(request: Request): string | null {
-  return getSessionFromCookieHeader(request.headers.get("cookie") ?? "")?.user.login ?? null;
+function getSessionOrNull(request: Request) {
+  return getSessionFromCookieHeader(request.headers.get("cookie") ?? "");
 }
 
 function readQuerySource(request: Request) {
@@ -75,7 +76,31 @@ async function handleTick(request: Request, source: Record<string, unknown>) {
     const seed = firstString(source.seed);
     const reset = parseBoolean(source.reset);
     const count = parseTickCount(source.count);
-    const callerLogin = getCallerLogin(request);
+    const session = getSessionOrNull(request);
+    const callerLogin = session?.user.login ?? null;
+
+    if (isHostedConvexModeEnabled()) {
+      const result = await runAuthoritativeTick({
+        callerLogin,
+        count,
+        reset,
+        seed,
+        sessionUser: session?.user ?? null,
+        townId,
+      });
+
+      return jsonResponse({
+        ok: true,
+        mode: "convex-hosted",
+        townId,
+        tickCount: count,
+        town: result.town,
+        summary: result.summary,
+        npcResults: result.npcResults,
+        events: result.town.events.slice(-30),
+      });
+    }
+
     const existingTown = findLocalMockTownState(townId);
 
     if (existingTown) {
@@ -111,7 +136,10 @@ async function handleTick(request: Request, source: Record<string, unknown>) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown tick failure";
-    return jsonResponse({ ok: false, mode: "mock-local", error: message }, error instanceof TownAccessError ? 403 : 500);
+    return jsonResponse(
+      { ok: false, mode: isHostedConvexModeEnabled() ? "convex-hosted" : "mock-local", error: message },
+      error instanceof TownAccessError || isTownAccessError(error) ? 403 : 500,
+    );
   }
 }
 

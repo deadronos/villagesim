@@ -330,5 +330,5 @@ export interface SimulationTickResult {
   summary: SimulationTickSummary;
   npcResults: TickNpcResult[];
   events: TownEvent[];
-  mode: "mock-local";
+  mode: "mock-local" | "convex-hosted";
 }

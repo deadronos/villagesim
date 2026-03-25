@@ -1,6 +1,29 @@
 import type { TownState } from "./types";
 
-export class TownAccessError extends Error {}
+export class TownAccessError extends Error {
+  code = "TOWN_ACCESS";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "TownAccessError";
+  }
+}
+
+export function isTownAccessError(error: unknown): error is TownAccessError {
+  if (error instanceof TownAccessError) {
+    return true;
+  }
+
+  return (
+    !!error &&
+    typeof error === "object" &&
+    ("code" in error
+      ? error.code === "TOWN_ACCESS"
+      : error instanceof Error &&
+          error.message.includes("belongs to @") &&
+          error.message.includes("Sign in as that user"))
+  );
+}
 
 export function isProfileOwnedTown(town: Pick<TownState, "metadata">): boolean {
   return town.metadata.createdFrom === "profile";
