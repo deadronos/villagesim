@@ -3,10 +3,14 @@ import { NextResponse } from "next/server";
 import {
   DEFAULT_MOCK_TOWN_ID,
   ensureLocalMockTownState,
+  findLocalMockTownState,
   getLocalMockTownState,
   resetLocalMockTown,
+  resetLocalMockTownFromExisting,
 } from "../../../lib/mockData";
+import { getSessionFromCookieHeader } from "../../../lib/session";
 import { runLocalMockTick } from "../../../lib/sim_engine";
+import { assertCanWriteTown, TownAccessError } from "../../../lib/townAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +45,10 @@ function jsonResponse(body: unknown, status = 200) {
   return response;
 }
 
+function getCallerLogin(request: Request): string | null {
+  return getSessionFromCookieHeader(request.headers.get("cookie") ?? "")?.user.login ?? null;
+}
+
 function readQuerySource(request: Request) {
   const searchParams = new URL(request.url).searchParams;
 
@@ -61,15 +69,25 @@ async function readBodySource(request: Request) {
   }
 }
 
-async function handleTick(source: Record<string, unknown>) {
+async function handleTick(request: Request, source: Record<string, unknown>) {
   try {
     const townId = firstString(source.townId) ?? DEFAULT_MOCK_TOWN_ID;
     const seed = firstString(source.seed);
     const reset = parseBoolean(source.reset);
     const count = parseTickCount(source.count);
+    const callerLogin = getCallerLogin(request);
+    const existingTown = findLocalMockTownState(townId);
+
+    if (existingTown) {
+      assertCanWriteTown(existingTown, callerLogin);
+    }
 
     if (reset) {
-      resetLocalMockTown({ id: townId, seed });
+      if (existingTown) {
+        resetLocalMockTownFromExisting(existingTown, { seed });
+      } else {
+        resetLocalMockTown({ id: townId, seed });
+      }
     } else {
       ensureLocalMockTownState({ id: townId, seed });
     }
@@ -93,14 +111,14 @@ async function handleTick(source: Record<string, unknown>) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown tick failure";
-    return jsonResponse({ ok: false, mode: "mock-local", error: message }, 500);
+    return jsonResponse({ ok: false, mode: "mock-local", error: message }, error instanceof TownAccessError ? 403 : 500);
   }
 }
 
 export async function GET(request: Request) {
-  return handleTick(readQuerySource(request));
+  return handleTick(request, readQuerySource(request));
 }
 
 export async function POST(request: Request) {
-  return handleTick(await readBodySource(request));
+  return handleTick(request, await readBodySource(request));
 }

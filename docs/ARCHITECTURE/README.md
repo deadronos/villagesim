@@ -24,3 +24,5 @@ Each ADR uses a numbered filename such as `001-description.md` so new decisions 
 - `technicaldecisions/004-keep-town-state-json-safe-for-ssr-and-api-boundaries.md`
 - `technicaldecisions/005-use-a-mock-planner-with-zod-validated-structured-payloads.md`
 - `technicaldecisions/006-use-the-app-router-as-the-hosted-foundation.md`
+- `technicaldecisions/007-github-oauth-and-session-strategy.md`
+- `technicaldecisions/008-use-copilot-sdk-as-the-first-hosted-planner-runtime.md`

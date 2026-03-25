@@ -1,11 +1,12 @@
 # VillageSim
 
-VillageSim is a local-first starter for a 2D village simulation MVP. It includes a runnable Next.js UI, a mock authoritative town state, NPC decision logic, a mock planner, a tick API, and a lightweight worker entrypoint so you can iterate before wiring real Convex, OAuth, or model infrastructure.
+VillageSim is a local-first starter for a 2D village simulation MVP. It includes a runnable Next.js UI, a mock authoritative town state, NPC decision logic, a mock planner, a tick API, and a lightweight worker entrypoint so you can iterate before wiring real Convex, OAuth, or hosted Copilot SDK planner infrastructure.
 
 ## What is in this starter?
 
 - Next.js App Router app scaffold with TypeScript enabled.
 - `/town/[id]` demo route that renders a seeded pixel village and NPC roster.
+- GitHub OAuth routes and signed cookie session helpers for hosted identity scaffolding.
 - Shared mock town state and simulation helpers in `lib/`.
 - A local-first `/api/tick` endpoint for advancing the simulation.
 - Worker entrypoints in `workers/` plus Convex-style query/mutation stubs in `convex/`.
@@ -14,21 +15,28 @@ VillageSim is a local-first starter for a 2D village simulation MVP. It includes
 ## Local startup
 
 1. Copy the example environment file:
+
    ```bash
    cp .env.example .env.local
    ```
+
 2. Leave `MODEL_MOCK=true` for the first run. That keeps the planner side mock-friendly while the rest of the app is still being wired.
 3. Install dependencies:
+
    ```bash
    npm install
    ```
+
 4. Start the app:
+
    ```bash
    npm run dev
    ```
+
 5. Open [http://localhost:3000](http://localhost:3000).
 6. Visit [http://localhost:3000/town/demo-town](http://localhost:3000/town/demo-town).
 7. Optionally advance the local simulation manually:
+
    ```bash
    npm run tick:mock -- --town demo-town --count 2
    ```
@@ -47,14 +55,16 @@ The provided `.env.example` includes placeholders for:
 
 - GitHub OAuth client credentials
 - Convex deployment values for authoritative state and worker access
-- Planner/model settings with `MODEL_MOCK=true` enabled by default
+- Planner/model settings with `MODEL_MOCK=true` enabled by default for the current starter path
 - Session secret for local development
+
+Today the starter still uses the generic `MODEL_*` placeholders for its mock-friendly remote planner seam. The planned hosted architecture now targets Copilot SDK as the first real planner provider rather than a direct GitHub Models PAT flow.
 
 ## Local-first architecture
 
 - `lib/mockData.ts` owns seeded town/NPC state and simple in-memory persistence.
 - `lib/npc_decision.ts` handles fast weighted decisions with injectable RNG.
-- `lib/model_proxy.ts` provides a zod-validated mock planner and a placeholder remote model path.
+- `lib/model_proxy.ts` provides a zod-validated mock planner and the provider seam that the hosted plan will pivot toward Copilot SDK.
 - `lib/sim_engine.ts` applies actions, assigns plans, and advances ticks.
 - `app/api/tick/route.ts` advances the local town and returns structured JSON for the UI.
 - `workers/tick.ts` and `workers/worker_helpers.ts` exercise the same simulation logic outside the request path.
@@ -62,5 +72,5 @@ The provided `.env.example` includes placeholders for:
 ## Next steps
 
 - Replace the mock in-memory town store with real Convex reads and mutations.
-- Add GitHub OAuth routes that seed a town from the authenticated profile.
-- Swap `MODEL_MOCK=true` for a real planner endpoint once you are ready to test model-based plans.
+- Move GitHub-auth town ownership from the in-memory mock bridge into Convex-backed persistence.
+- Replace the placeholder remote planner wiring with a Copilot SDK-backed hosted planner path while keeping the mock fallback as the default local-first experience.
