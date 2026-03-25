@@ -72,10 +72,13 @@ Component tests use the `@vitest-environment jsdom` docblock and share a common 
 The provided `.env.example` includes placeholders for:
 
 - GitHub OAuth client credentials
+- `APPROVED_GITHUB_LOGINS` for the private-alpha hosted access allowlist
 - Convex deployment values for authoritative state and worker access
 - `VILLAGESIM_STATE_MODE=mock|convex` to choose between local seeded storage and hosted Convex authority
 - Planner/model settings with `MODEL_MOCK=true` enabled by default for the current starter path
 - Session secret for local development
+
+Hosted GitHub sign-in stays private-alpha by default. Add a comma-separated list of approved GitHub logins to `APPROVED_GITHUB_LOGINS` before testing OAuth locally. Unapproved users are redirected back to `/` with an explicit denial message, and the local `demo-town` flow continues to work without OAuth.
 
 Today the starter still uses the generic `MODEL_*` placeholders for its mock-friendly remote planner seam. The planned hosted architecture now targets Copilot SDK as the first real planner provider rather than a direct GitHub Models PAT flow.
 

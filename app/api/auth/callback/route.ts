@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { isGitHubLoginApproved } from "../../../../lib/approvedUsers";
 import { exchangeCodeForToken, getGitHubUser } from "../../../../lib/githubAuth";
 import { createOrReopenTownForProfile } from "../../../../lib/authoritativeTownStore";
 import {
@@ -18,6 +19,17 @@ function getCallbackUri(request: Request): string {
 
 function isSecure(request: Request): boolean {
   return new URL(request.url).protocol === "https:";
+}
+
+function clearCookie(response: NextResponse, name: string) {
+  response.cookies.set({
+    name,
+    value: "",
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  });
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -47,6 +59,12 @@ export async function GET(request: Request): Promise<Response> {
     }
 
     const profile = await getGitHubUser(tokenData.access_token);
+    if (!isGitHubLoginApproved(profile.login)) {
+      const response = NextResponse.redirect(`${baseUrl}/?auth_error=not_approved`);
+      clearCookie(response, OAUTH_STATE_COOKIE_NAME);
+      clearCookie(response, SESSION_COOKIE_NAME);
+      return response;
+    }
 
     const town = await createOrReopenTownForProfile({
       callerLogin: profile.login,
