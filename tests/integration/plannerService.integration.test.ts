@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createPlannerServiceRequest } from "../../lib/plannerContract";
+import { PlannerProviderError, type PlannerProvider } from "../../services/planner/src/providers";
 import { createPlannerServiceHandler, type PlannerServiceConfig } from "../../services/planner/src/server";
 import { computePlannerSignature } from "../../services/planner/src/security";
 
@@ -53,6 +54,7 @@ async function startTestServer(config: PlannerServiceConfig = createConfig()): P
   const logger = vi.fn();
   const server = createServer(
     createPlannerServiceHandler(config, {
+      env: {},
       logger,
       now: () => FIXED_NOW_MS,
     }),
@@ -235,5 +237,65 @@ describe("planner service", () => {
     expect(second.status).toBe(429);
     expect(second.headers.get("Retry-After")).toBe("60");
     await expect(second.json()).resolves.toMatchObject({ error: "rate_limited", retryAfterSeconds: 60 });
+  });
+
+  it("returns safe structured provider failures without exposing runtime internals", async () => {
+    const provider: PlannerProvider = {
+      name: "copilot",
+      async plan() {
+        throw new PlannerProviderError(502, "planner_provider_failed", "raw copilot trace should not reach the caller");
+      },
+    };
+    const logger = vi.fn();
+    const server = createServer(
+      createPlannerServiceHandler(createConfig(), {
+        env: {},
+        logger,
+        now: () => FIXED_NOW_MS,
+        provider,
+      }),
+    );
+
+    await new Promise<void>((resolve) => {
+      server.listen(0, "127.0.0.1", () => resolve());
+    });
+
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Failed to bind test planner server");
+    }
+
+    activeServer = {
+      close: () =>
+        new Promise<void>((resolve, reject) => {
+          server.close((error) => {
+            if (error) {
+              reject(error);
+              return;
+            }
+            resolve();
+          });
+        }),
+    };
+
+    const request = createSignedRequest("planner-request-8");
+    const response = await fetch(`http://127.0.0.1:${address.port}/plan`, {
+      method: "POST",
+      headers: request.headers,
+      body: request.body,
+    });
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({
+      error: "planner_provider_failed",
+      requestId: "planner-request-8",
+    });
+    expect(logger).toHaveBeenCalledWith(
+      expect.objectContaining({
+        failureReason: "planner_provider_failed",
+        requestId: "planner-request-8",
+        statusCode: 502,
+      }),
+    );
   });
 });

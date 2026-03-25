@@ -1,5 +1,6 @@
 import * as plannerContract from "../../../../lib/plannerContract";
 import type { PlannerPayload, PlannerServiceRequest, PlannerServiceResponse } from "../../../../lib/plannerContract";
+import type { PlannerProvider } from "./base.js";
 
 const plannerContractModule = ("default" in plannerContract ? plannerContract.default : plannerContract) as typeof import("../../../../lib/plannerContract");
 const { plannerServiceResponseSchema } = plannerContractModule;
@@ -52,11 +53,9 @@ function buildMockPayload(request: PlannerServiceRequest): PlannerPayload {
   }
 }
 
-export interface PlannerProvider {
-  plan(request: PlannerServiceRequest): Promise<PlannerServiceResponse> | PlannerServiceResponse;
-}
-
 export class MockPlannerProvider implements PlannerProvider {
+  readonly name = "mock";
+
   plan(request: PlannerServiceRequest): PlannerServiceResponse {
     return plannerServiceResponseSchema.parse({
       requestId: request.metadata.requestId,

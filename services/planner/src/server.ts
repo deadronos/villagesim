@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { pathToFileURL } from "node:url";
 import { ZodError } from "zod";
 
-import { MockPlannerProvider, type PlannerProvider } from "./providers/mock.js";
+import { PlannerProviderError, createPlannerProviderFromEnv, type PlannerProvider } from "./providers/index.js";
 import { SlidingWindowRateLimiter } from "./rateLimit.js";
 import { ReplayProtector, SecurityError, verifyPlannerRequest } from "./security.js";
 
@@ -25,6 +25,7 @@ export interface PlannerServiceConfig {
 }
 
 interface PlannerServiceDependencies {
+  env?: NodeJS.ProcessEnv;
   logger?: (entry: Record<string, unknown>) => void;
   now?: () => number;
   provider?: PlannerProvider;
@@ -151,9 +152,10 @@ export function createPlannerServiceHandler(
   config: PlannerServiceConfig,
   dependencies: PlannerServiceDependencies = {},
 ): (request: IncomingMessage, response: ServerResponse) => Promise<void> {
+  const env = dependencies.env ?? process.env;
   const logger = dependencies.logger ?? ((entry) => console.log(JSON.stringify(entry)));
   const now = dependencies.now ?? (() => Date.now());
-  const provider = dependencies.provider ?? new MockPlannerProvider();
+  const provider = dependencies.provider ?? createPlannerProviderFromEnv(env);
   const rateLimiter = dependencies.rateLimiter ?? new SlidingWindowRateLimiter(config.rateLimitMax, config.rateLimitWindowMs);
   const replayProtector = dependencies.replayProtector ?? new ReplayProtector();
 
@@ -228,6 +230,13 @@ export function createPlannerServiceHandler(
         statusCode = 400;
         failureReason = "invalid_request_shape";
         sendJson(response, 400, { error: "invalid_request_shape", requestId: requestId ?? null });
+        return;
+      }
+
+      if (error instanceof PlannerProviderError) {
+        statusCode = error.statusCode;
+        failureReason = error.failureReason;
+        sendJson(response, error.statusCode, { error: error.failureReason, requestId: requestId ?? null });
         return;
       }
 
