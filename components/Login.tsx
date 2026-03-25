@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import styles from "../styles/Town.module.css";
+import type { SessionUser } from "../lib/session";
 
 interface LoginProps {
   currentTownId?: string;
   isLoading?: boolean;
   onEnterTown?: (townId: string) => void;
+  sessionUser?: SessionUser | null;
 }
 
 const normalizeTownId = (value: string) =>
@@ -17,7 +19,7 @@ const normalizeTownId = (value: string) =>
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/^-+|-+$/g, "") || "starter-hollow";
 
-export default function Login({ currentTownId, isLoading = false, onEnterTown }: LoginProps) {
+export default function Login({ currentTownId, isLoading = false, onEnterTown, sessionUser }: LoginProps) {
   const [draftTownId, setDraftTownId] = useState(currentTownId ?? "starter-hollow");
 
   useEffect(() => {
@@ -72,16 +74,33 @@ export default function Login({ currentTownId, isLoading = false, onEnterTown }:
       </form>
 
       <div className={styles.githubPlaceholder}>
-        <div>
-          <h3 className={styles.placeholderTitle}>GitHub OAuth</h3>
-          <p className={styles.helperText}>
-            Placeholder only: wire this panel to <code>/api/auth/start</code> once the auth route and
-            user-town seeding are ready.
-          </p>
-        </div>
-        <button className={styles.buttonMuted} disabled type="button">
-          Connect GitHub (soon)
-        </button>
+        {sessionUser ? (
+          <>
+            <div>
+              <h3 className={styles.placeholderTitle}>Signed in as @{sessionUser.login}</h3>
+              <p className={styles.helperText}>
+                {sessionUser.name ? `${sessionUser.name} · ` : ""}Your town is tied to this GitHub identity.
+              </p>
+            </div>
+            <form action="/api/auth/logout" method="POST">
+              <button className={styles.buttonGhost} type="submit">
+                Sign out
+              </button>
+            </form>
+          </>
+        ) : (
+          <>
+            <div>
+              <h3 className={styles.placeholderTitle}>GitHub sign-in</h3>
+              <p className={styles.helperText}>
+                Sign in with GitHub to open your hosted town. Your town is seeded from your GitHub profile.
+              </p>
+            </div>
+            <a className={styles.button} href="/api/auth/start">
+              Connect GitHub
+            </a>
+          </>
+        )}
       </div>
     </section>
   );

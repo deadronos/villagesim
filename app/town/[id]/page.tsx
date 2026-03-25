@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 
 import { ensureLocalMockTownState } from "../../../lib/mockData";
+import { decodeSession, SESSION_COOKIE_NAME } from "../../../lib/session";
 import TownPageClient from "./TownPageClient";
 import { normalizeTownId, titleizeTownId } from "./townPresentation";
 
@@ -26,7 +28,15 @@ export default async function TownPage({ params }: TownPageProps) {
   const { id } = await params;
   const initialTownId = normalizeTownId(id);
 
+  const cookieStore = await cookies();
+  const sessionValue = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  const session = sessionValue ? decodeSession(sessionValue) : null;
+
   return (
-    <TownPageClient initialTown={ensureLocalMockTownState({ id: initialTownId })} initialTownId={initialTownId} />
+    <TownPageClient
+      initialTown={ensureLocalMockTownState({ id: initialTownId })}
+      initialTownId={initialTownId}
+      sessionUser={session?.user ?? null}
+    />
   );
 }
