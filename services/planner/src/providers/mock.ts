@@ -1,4 +1,4 @@
-import * as plannerContract from "../../../../lib/plannerContract.ts";
+import * as plannerContract from "../../../../lib/plannerContract";
 import type { PlannerPayload, PlannerServiceRequest, PlannerServiceResponse } from "../../../../lib/plannerContract";
 
 const plannerContractModule = ("default" in plannerContract ? plannerContract.default : plannerContract) as typeof import("../../../../lib/plannerContract");

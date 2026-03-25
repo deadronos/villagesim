@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import * as plannerContract from "../../../lib/plannerContract.ts";
+import * as plannerContract from "../../../lib/plannerContract";
 import type { PlannerServiceRequest } from "../../../lib/plannerContract";
 
 const plannerContractModule = ("default" in plannerContract ? plannerContract.default : plannerContract) as typeof import("../../../lib/plannerContract");
