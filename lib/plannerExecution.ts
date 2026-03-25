@@ -58,6 +58,7 @@ function trimPlannerQueue(queue: PlannerQueueEntry[]): PlannerQueueEntry[] {
 function toPlannerRequestSnapshot(input: PlannerRequest): PlannerRequestSnapshot {
   return {
     townId: input.townId,
+    callerLogin: input.callerLogin ?? null,
     tick: input.tick,
     npc: input.npc,
     env: input.env,

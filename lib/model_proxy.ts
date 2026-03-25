@@ -1,6 +1,19 @@
-import { z } from "zod";
+import { createHmac, randomUUID } from "node:crypto";
 
 import { buildPlannerPrompt } from "./prompt_templates";
+import { isPlannerServiceEnabled, readPlannerServiceConfig } from "./plannerConfig";
+import {
+  createPlannerServiceRequest,
+  parsePlannerPayload,
+  plannerPayloadSchema,
+  plannerServiceRequestMetadataSchema,
+  plannerServiceRequestSchema,
+  plannerServiceResponseSchema,
+  planStepSchema,
+  positionSchema,
+  type PlannerPayload,
+  type PlannerPayloadStep,
+} from "./plannerContract";
 import type {
   NpcPlan,
   NpcPlanStep,
@@ -11,40 +24,6 @@ import type {
   Position,
   RandomSource,
 } from "./types";
-
-const positionSchema = z.object({
-  x: z.number(),
-  y: z.number(),
-});
-
-const planStepSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("move"), target: positionSchema, note: z.string().optional() }),
-  z.object({ type: z.literal("work"), task: z.string().min(1), targetId: z.string().optional(), note: z.string().optional() }),
-  z.object({ type: z.literal("gather"), item: z.enum(["grain", "wood"]), count: z.number().int().positive(), targetId: z.string().optional(), note: z.string().optional() }),
-  z.object({ type: z.literal("speak"), text: z.string().min(1), targetId: z.string().optional(), note: z.string().optional() }),
-  z.object({ type: z.literal("rest"), note: z.string().optional() }),
-  z.object({ type: z.literal("trade"), item: z.enum(["food", "grain", "wood", "coins"]), amount: z.number().int().positive(), targetId: z.string().optional(), note: z.string().optional() }),
-  z.object({ type: z.literal("wait"), seconds: z.number().int().positive(), note: z.string().optional() }),
-]);
-
-const plannerPayloadSchema = z.object({
-  rationale: z.string().optional().default("Short local-first plan"),
-  plan: z.array(planStepSchema).min(1).max(6),
-});
-
-export type PlannerPayloadStep =
-  | { type: "move"; target: Position; note?: string }
-  | { type: "work"; task: string; targetId?: string; note?: string }
-  | { type: "gather"; item: "grain" | "wood"; count: number; targetId?: string; note?: string }
-  | { type: "speak"; text: string; targetId?: string; note?: string }
-  | { type: "rest"; note?: string }
-  | { type: "trade"; item: "food" | "grain" | "wood" | "coins"; amount: number; targetId?: string; note?: string }
-  | { type: "wait"; seconds: number; note?: string };
-
-export interface PlannerPayload {
-  rationale: string;
-  plan: PlannerPayloadStep[];
-}
 
 function nextPlanId(input: PlannerRequest): string {
   return `${input.npc.id}:${input.intent}:${input.now}`;
@@ -140,25 +119,6 @@ function createPlannerResult(
   };
 }
 
-function safeParsePlannerJson(raw: unknown): PlannerPayload {
-  if (typeof raw === "string") {
-    return plannerPayloadSchema.parse(JSON.parse(raw));
-  }
-  if (raw && typeof raw === "object") {
-    if ("choices" in raw && Array.isArray((raw as { choices?: unknown[] }).choices)) {
-      const firstChoice = (raw as { choices: Array<{ message?: { content?: string }; text?: string }> }).choices[0];
-      const content = firstChoice?.message?.content ?? firstChoice?.text;
-      if (content) {
-        return safeParsePlannerJson(content);
-      }
-    }
-    if ("output" in raw) {
-      return safeParsePlannerJson((raw as { output: unknown }).output);
-    }
-  }
-  return plannerPayloadSchema.parse(raw);
-}
-
 function buildMockPayload(input: PlannerRequest, rng: RandomSource): PlannerPayload {
   const home = input.env.nearby.home;
   const field = input.env.nearby.field;
@@ -227,14 +187,6 @@ function buildMockPayload(input: PlannerRequest, rng: RandomSource): PlannerPayl
   }
 }
 
-function readPlannerTimeoutMs(): number {
-  const parsed = Number.parseInt(process.env.VILLAGESIM_PLANNER_TIMEOUT_MS ?? "3000", 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return 3000;
-  }
-  return parsed;
-}
-
 function normalizeErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -242,34 +194,57 @@ function normalizeErrorMessage(error: unknown): string {
   return "Planner request failed";
 }
 
-async function requestRemotePlanner(prompt: string): Promise<PlannerPayload | null> {
-  const apiUrl = process.env.MODEL_API_URL;
-  const apiKey = process.env.MODEL_API_KEY;
-  if (!apiUrl || !apiKey || process.env.MODEL_MOCK === "true") {
+function signPlannerServiceRequest(body: string, requestId: string, requestedAt: string, signingSecret: string): string {
+  return createHmac("sha256", signingSecret).update(`${requestId}.${requestedAt}.${body}`).digest("hex");
+}
+
+async function requestRemotePlanner(input: PlannerRequest, prompt: string): Promise<PlannerPayload | null> {
+  const config = readPlannerServiceConfig();
+  if (!isPlannerServiceEnabled(config) || !config.url || !config.token) {
     return null;
   }
 
+  const requestEnvelope = createPlannerServiceRequest({
+    callerLogin: input.callerLogin ?? null,
+    intent: input.intent,
+    npcId: input.npc.id,
+    prompt,
+    requestId: randomUUID(),
+    requestedAt: new Date().toISOString(),
+    simulationTimeMs: input.now,
+    tick: input.tick,
+    townId: input.townId,
+  });
+  const body = JSON.stringify(requestEnvelope);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), readPlannerTimeoutMs());
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
   let response: Response;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${config.token}`,
+    "X-VillageSim-Request-Id": requestEnvelope.metadata.requestId,
+    "X-VillageSim-Requested-At": requestEnvelope.metadata.requestedAt,
+  };
+
+  if (config.signingSecret) {
+    headers["X-VillageSim-Signature"] = signPlannerServiceRequest(
+      body,
+      requestEnvelope.metadata.requestId,
+      requestEnvelope.metadata.requestedAt,
+      config.signingSecret,
+    );
+  }
 
   try {
-    response = await fetch(apiUrl, {
+    response = await fetch(config.url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        prompt,
-        response_format: { type: "json_object" },
-        temperature: 0,
-      }),
+      headers,
+      body,
       signal: controller.signal,
     });
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`Planner proxy timed out after ${readPlannerTimeoutMs()}ms`);
+      throw new Error(`Planner service timed out after ${config.timeoutMs}ms`);
     }
     throw error;
   } finally {
@@ -277,11 +252,11 @@ async function requestRemotePlanner(prompt: string): Promise<PlannerPayload | nu
   }
 
   if (!response.ok) {
-    throw new Error(`Planner proxy request failed with ${response.status}`);
+    throw new Error(`Planner service request failed with ${response.status}`);
   }
 
   const payload = await response.json();
-  return safeParsePlannerJson(payload);
+  return parsePlannerPayload(payload);
 }
 
 export function createMockPlannerResult(
@@ -331,7 +306,7 @@ export async function requestNpcPlan(input: PlannerRequest): Promise<PlannerResu
   let failureReason: string | null = null;
 
   try {
-    const remotePayload = await requestRemotePlanner(prompt);
+    const remotePayload = await requestRemotePlanner(input, prompt);
     if (remotePayload) {
       return createPlannerResult(input, remotePayload, prompt, {
         source: "remote",
@@ -354,4 +329,7 @@ export const plannerSchemas = {
   positionSchema,
   planStepSchema,
   plannerPayloadSchema,
+  plannerServiceRequestMetadataSchema,
+  plannerServiceRequestSchema,
+  plannerServiceResponseSchema,
 };

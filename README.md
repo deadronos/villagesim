@@ -20,7 +20,7 @@ VillageSim is a local-first starter for a 2D village simulation MVP. It includes
    cp .env.example .env.local
    ```
 
-2. Leave `MODEL_MOCK=true` for the first run and keep `VILLAGESIM_STATE_MODE=mock` unless you have a Convex deployment configured. That keeps the planner side mock-friendly while the rest of the app is still being wired.
+2. Leave `VILLAGESIM_PLANNER_MOCK=true` for the first run and keep `VILLAGESIM_STATE_MODE=mock` unless you have a Convex deployment configured. That keeps the planner side mock-friendly while the rest of the app is still being wired.
 3. Install dependencies:
 
    ```bash
@@ -75,19 +75,20 @@ The provided `.env.example` includes placeholders for:
 - `APPROVED_GITHUB_LOGINS` for the private-alpha hosted access allowlist
 - Convex deployment values for authoritative state and worker access
 - `VILLAGESIM_STATE_MODE=mock|convex` to choose between local seeded storage and hosted Convex authority
-- Planner/model settings with `MODEL_MOCK=true` enabled by default for the current starter path
+- Planner service settings with `VILLAGESIM_PLANNER_MOCK=true` enabled by default for the current starter path
 - Session secret for local development
 
 Hosted GitHub sign-in stays private-alpha by default. Add a comma-separated list of approved GitHub logins to `APPROVED_GITHUB_LOGINS` before testing OAuth locally. Unapproved users are redirected back to `/` with an explicit denial message, and the local `demo-town` flow continues to work without OAuth.
 
-Today the starter still uses the generic `MODEL_*` placeholders for its mock-friendly remote planner seam. The planned hosted architecture now targets Copilot SDK as the first real planner provider rather than a direct GitHub Models PAT flow.
+The shared planner seam now uses `VILLAGESIM_PLANNER_SERVICE_*` names for the private service path while keeping `VILLAGESIM_PLANNER_MOCK=true` as the default local-first behavior. Legacy `MODEL_*` aliases are still accepted for compatibility during the transition.
 
 ## Local-first architecture
 
 - `lib/mockData.ts` owns seeded town/NPC state and simple in-memory persistence for local mock mode.
 - `lib/authoritativeTownStore.ts` switches hosted reads/writes between local mock mode and Convex-backed authority.
 - `lib/npc_decision.ts` handles fast weighted decisions with injectable RNG.
-- `lib/model_proxy.ts` provides a zod-validated mock planner and the provider seam that the hosted plan will pivot toward Copilot SDK.
+- `lib/plannerContract.ts` defines the shared zod-validated planner request/response contract used by the app-side planner seam.
+- `lib/model_proxy.ts` provides the deterministic mock planner plus the private planner-service transport that preserves mock fallback semantics.
 - `lib/sim_engine.ts` applies actions, assigns plans, and advances ticks.
 - `app/api/tick/route.ts` advances either the local mock town or the hosted Convex town and returns structured JSON for the UI.
 - `workers/tick.ts` and `workers/worker_helpers.ts` exercise the same simulation logic outside the request path.
@@ -96,4 +97,4 @@ Today the starter still uses the generic `MODEL_*` placeholders for its mock-fri
 
 - Replace the mock in-memory town store with real Convex reads and mutations.
 - Move GitHub-auth town ownership from the in-memory mock bridge into Convex-backed persistence.
-- Replace the placeholder remote planner wiring with a Copilot SDK-backed hosted planner path while keeping the mock fallback as the default local-first experience.
+- Implement the private planner service itself so the shared planner contract can be validated on both sides of the hosted boundary.

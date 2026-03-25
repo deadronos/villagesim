@@ -181,6 +181,7 @@ export async function runAuthoritativeTick(args: RunTickArgs): Promise<Simulatio
   for (let index = 0; index < args.count; index += 1) {
     const hostedPlannerQueue = createHostedPlannerQueueForTick(town.id, town.tick + 1);
     latestResult = await runSimulationTick(town, {
+      callerLogin: args.callerLogin,
       planner: hostedPlannerQueue.planner,
     });
     hostedPlannerQueue.finalizeTown(latestResult.town, latestResult.summary.planner);

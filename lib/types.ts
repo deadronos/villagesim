@@ -231,6 +231,7 @@ export interface TownEvent {
 
 export interface PlannerRequestSnapshot {
   townId: string;
+  callerLogin?: string | null;
   tick: number;
   npc: NpcState;
   env: NpcEnvironment;
@@ -359,6 +360,7 @@ export type WeightedDecisionResult = ImmediateActionDecision | PlanRequiredDecis
 
 export interface PlannerRequest {
   townId: string;
+  callerLogin?: string | null;
   tick: number;
   npc: NpcState;
   env: NpcEnvironment;

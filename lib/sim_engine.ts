@@ -22,6 +22,7 @@ import type {
 } from "./types";
 
 export interface SimulationTickOptions {
+  callerLogin?: string | null;
   now?: number;
   rng?: RandomSource;
   planner?: typeof requestNpcPlan;
@@ -433,6 +434,7 @@ export async function runSimulationTick(
 
     const plannerResult = await planner({
       townId: town.id,
+      callerLogin: options.callerLogin ?? null,
       tick: town.tick,
       npc: town.npcs[npc.id],
       env,

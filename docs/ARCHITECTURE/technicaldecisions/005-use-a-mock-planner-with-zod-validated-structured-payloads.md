@@ -10,9 +10,9 @@ Accepted
 
 ## Context
 
-The simulation can request plans for NPCs through `lib/model_proxy.ts`. That module defines zod schemas for planner positions, discriminated plan steps, and the overall planner payload. `requestNpcPlan` always builds a structured prompt with `buildPlannerPrompt`, attempts a remote planner call only when the starter's placeholder remote settings are configured and `MODEL_MOCK !== "true"`, and otherwise falls back to a deterministic mock payload.
+The simulation can request plans for NPCs through `lib/model_proxy.ts`. Shared schemas now live in `lib/plannerContract.ts` so the app and planner service can validate the same request and response shapes. `requestNpcPlan` still builds a structured prompt with `buildPlannerPrompt`, attempts a remote planner-service call only when the service settings are configured and `VILLAGESIM_PLANNER_MOCK !== "true"`, and otherwise falls back to a deterministic mock payload.
 
-Incoming planner output is normalized by `safeParsePlannerJson`, which can unwrap several common response shapes before validating the final payload with zod. Validated payloads are then converted into typed `NpcPlan` objects with generated step IDs and starter-compatible statuses.
+Incoming planner output is normalized through the shared planner contract parser, which can unwrap both service-envelope responses and a few legacy provider-shaped payloads before validating the final plan with zod. Validated payloads are then converted into typed `NpcPlan` objects with generated step IDs and starter-compatible statuses.
 
 The hosted architecture now plans to use Copilot SDK as the first real planner provider, but that runtime change must stay behind the same structured planner contract.
 
