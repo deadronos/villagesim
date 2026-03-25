@@ -377,7 +377,7 @@ export function resetLocalMockTown(options: CreateMockTownOptions = {}): TownSta
   return cloneTownState(town);
 }
 
-export function resetLocalMockTownFromExisting(town: TownState, options: Pick<CreateMockTownOptions, "seed"> = {}): TownState {
+export function reseedTownFromExisting(town: TownState, options: Pick<CreateMockTownOptions, "seed"> = {}): TownState {
   const resetTown = createMockTown({
     id: town.id,
     seed: options.seed ?? town.seed,
@@ -386,6 +386,11 @@ export function resetLocalMockTownFromExisting(town: TownState, options: Pick<Cr
     tokenSummary: town.metadata.tokenSummary,
   });
   resetTown.metadata.createdFrom = town.metadata.createdFrom;
+  return cloneTownState(resetTown);
+}
+
+export function resetLocalMockTownFromExisting(town: TownState, options: Pick<CreateMockTownOptions, "seed"> = {}): TownState {
+  const resetTown = reseedTownFromExisting(town, options);
   localTownStore.set(resetTown.id, cloneTownState(resetTown));
   return cloneTownState(resetTown);
 }

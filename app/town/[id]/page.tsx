@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { ensureAuthoritativeTown, isHostedConvexModeEnabled } from "../../../lib/authoritativeTownStore";
 import { ensureLocalMockTownState, findLocalMockTownState } from "../../../lib/mockData";
 import { decodeSession, SESSION_COOKIE_NAME } from "../../../lib/session";
-import { canAccessTown } from "../../../lib/townAccess";
+import { canAccessTown, isTownAccessError } from "../../../lib/townAccess";
 import TownPageClient from "./TownPageClient";
 import { normalizeTownId, titleizeTownId } from "./townPresentation";
 
@@ -33,9 +34,38 @@ export default async function TownPage({ params }: TownPageProps) {
   const cookieStore = await cookies();
   const sessionValue = cookieStore.get(SESSION_COOKIE_NAME)?.value;
   const session = sessionValue ? decodeSession(sessionValue) : null;
-  const existingTown = findLocalMockTownState(initialTownId);
+  let initialTown = null;
 
-  if (existingTown && !canAccessTown(existingTown, session?.user.login)) {
+  if (isHostedConvexModeEnabled()) {
+    try {
+      initialTown = await ensureAuthoritativeTown({
+        callerLogin: session?.user.login ?? null,
+        sessionUser: session?.user ?? null,
+        townId: initialTownId,
+      });
+    } catch (error) {
+      if (isTownAccessError(error)) {
+        if (session?.townId) {
+          redirect(`/town/${encodeURIComponent(session.townId)}`);
+        }
+        redirect("/");
+      }
+      throw error;
+    }
+  } else {
+    const existingTown = findLocalMockTownState(initialTownId);
+
+    if (existingTown && !canAccessTown(existingTown, session?.user.login)) {
+      if (session?.townId) {
+        redirect(`/town/${encodeURIComponent(session.townId)}`);
+      }
+      redirect("/");
+    }
+
+    initialTown = existingTown ?? ensureLocalMockTownState({ id: initialTownId });
+  }
+
+  if (!initialTown) {
     if (session?.townId) {
       redirect(`/town/${encodeURIComponent(session.townId)}`);
     }
@@ -44,7 +74,7 @@ export default async function TownPage({ params }: TownPageProps) {
 
   return (
     <TownPageClient
-      initialTown={existingTown ?? ensureLocalMockTownState({ id: initialTownId })}
+      initialTown={initialTown}
       initialTownId={initialTownId}
       sessionTownId={session?.townId ?? null}
       sessionUser={session?.user ?? null}

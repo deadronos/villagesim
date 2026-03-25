@@ -2,6 +2,17 @@ import type { TownState } from "./types";
 
 export class TownAccessError extends Error {}
 
+export function isTownAccessError(error: unknown): error is TownAccessError {
+  if (error instanceof TownAccessError) {
+    return true;
+  }
+
+  return (
+    error instanceof Error &&
+    /Town .* belongs to @.* Sign in as that user to (read|change) it\./.test(error.message)
+  );
+}
+
 export function isProfileOwnedTown(town: Pick<TownState, "metadata">): boolean {
   return town.metadata.createdFrom === "profile";
 }

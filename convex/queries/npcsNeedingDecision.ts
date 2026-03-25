@@ -1,15 +1,26 @@
-import { ensureLocalMockTownState } from "../../lib/mockData";
+import { v } from "convex/values";
+
+import { internalQuery } from "../_generated/server";
 import { collectNpcsNeedingDecision } from "../../lib/sim_engine";
+import { readTownFromConvex } from "../townStateStore";
 
 export interface NpcsNeedingDecisionArgs {
   townId: string;
   thresholdTicks?: number;
 }
 
-// Local-first query stub matching the starter's intended Convex shape.
-export async function npcsNeedingDecision(_ctx: unknown, args: NpcsNeedingDecisionArgs) {
-  const town = ensureLocalMockTownState({ id: args.townId });
-  return collectNpcsNeedingDecision(town, args.thresholdTicks ?? 0);
-}
+export const npcsNeedingDecision = internalQuery({
+  args: {
+    townId: v.string(),
+    thresholdTicks: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const town = await readTownFromConvex(ctx.db, args.townId);
+    if (!town) {
+      return [];
+    }
+    return collectNpcsNeedingDecision(town, args.thresholdTicks ?? 0);
+  },
+});
 
 export default npcsNeedingDecision;

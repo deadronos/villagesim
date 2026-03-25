@@ -1,6 +1,6 @@
 # VillageSim
 
-VillageSim is a local-first starter for a 2D village simulation MVP. It includes a runnable Next.js UI, a mock authoritative town state, NPC decision logic, a mock planner, a tick API, and a lightweight worker entrypoint so you can iterate before wiring real Convex, OAuth, or hosted Copilot SDK planner infrastructure.
+VillageSim is a local-first starter for a 2D village simulation MVP. It includes a runnable Next.js UI, Convex-backed hosted authority for towns when enabled, mock local development state by default, NPC decision logic, a mock planner, a tick API, and a lightweight worker entrypoint so you can iterate before wiring full hosted planner infrastructure.
 
 ## What is in this starter?
 
@@ -20,7 +20,7 @@ VillageSim is a local-first starter for a 2D village simulation MVP. It includes
    cp .env.example .env.local
    ```
 
-2. Leave `MODEL_MOCK=true` for the first run. That keeps the planner side mock-friendly while the rest of the app is still being wired.
+2. Leave `MODEL_MOCK=true` for the first run and keep `VILLAGESIM_STATE_MODE=mock` unless you have a Convex deployment configured. That keeps the planner side mock-friendly while the rest of the app is still being wired.
 3. Install dependencies:
 
    ```bash
@@ -55,6 +55,7 @@ The provided `.env.example` includes placeholders for:
 
 - GitHub OAuth client credentials
 - Convex deployment values for authoritative state and worker access
+- `VILLAGESIM_STATE_MODE=mock|convex` to choose between local seeded storage and hosted Convex authority
 - Planner/model settings with `MODEL_MOCK=true` enabled by default for the current starter path
 - Session secret for local development
 
@@ -62,11 +63,12 @@ Today the starter still uses the generic `MODEL_*` placeholders for its mock-fri
 
 ## Local-first architecture
 
-- `lib/mockData.ts` owns seeded town/NPC state and simple in-memory persistence.
+- `lib/mockData.ts` owns seeded town/NPC state and simple in-memory persistence for local mock mode.
+- `lib/authoritativeTownStore.ts` switches hosted reads/writes between local mock mode and Convex-backed authority.
 - `lib/npc_decision.ts` handles fast weighted decisions with injectable RNG.
 - `lib/model_proxy.ts` provides a zod-validated mock planner and the provider seam that the hosted plan will pivot toward Copilot SDK.
 - `lib/sim_engine.ts` applies actions, assigns plans, and advances ticks.
-- `app/api/tick/route.ts` advances the local town and returns structured JSON for the UI.
+- `app/api/tick/route.ts` advances either the local mock town or the hosted Convex town and returns structured JSON for the UI.
 - `workers/tick.ts` and `workers/worker_helpers.ts` exercise the same simulation logic outside the request path.
 
 ## Next steps

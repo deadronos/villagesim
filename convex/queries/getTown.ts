@@ -1,5 +1,8 @@
-import { ensureLocalMockTownState, findLocalMockTownState } from "../../lib/mockData";
+import { v } from "convex/values";
+
+import { internalQuery } from "../_generated/server";
 import { assertCanReadTown } from "../../lib/townAccess";
+import { readTownFromConvex } from "../townStateStore";
 
 export interface GetTownArgs {
   callerLogin?: string | null;
@@ -7,11 +10,22 @@ export interface GetTownArgs {
   seed?: string;
 }
 
-// Local-first query stub matching the starter's intended Convex shape.
-export async function getTown(_ctx: unknown, args: GetTownArgs) {
-  const town = findLocalMockTownState(args.townId) ?? ensureLocalMockTownState({ id: args.townId, seed: args.seed });
-  assertCanReadTown(town, args.callerLogin);
-  return town;
-}
+export const getTown = internalQuery({
+  args: {
+    callerLogin: v.optional(v.union(v.string(), v.null())),
+    townId: v.string(),
+    seed: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const town = await readTownFromConvex(ctx.db, args.townId);
+
+    if (!town) {
+      return null;
+    }
+
+    assertCanReadTown(town, args.callerLogin);
+    return town;
+  },
+});
 
 export default getTown;
