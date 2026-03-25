@@ -6,6 +6,7 @@ VillageSim is a local-first starter for a 2D village simulation MVP. It includes
 
 - Next.js App Router app scaffold with TypeScript enabled.
 - `/town/[id]` demo route that renders a seeded pixel village and NPC roster.
+- GitHub OAuth routes and signed cookie session helpers for hosted identity scaffolding.
 - Shared mock town state and simulation helpers in `lib/`.
 - A local-first `/api/tick` endpoint for advancing the simulation.
 - Worker entrypoints in `workers/` plus Convex-style query/mutation stubs in `convex/`.
@@ -71,5 +72,5 @@ Today the starter still uses the generic `MODEL_*` placeholders for its mock-fri
 ## Next steps
 
 - Replace the mock in-memory town store with real Convex reads and mutations.
-- Add GitHub OAuth routes that seed a town from the authenticated profile.
+- Move GitHub-auth town ownership from the in-memory mock bridge into Convex-backed persistence.
 - Replace the placeholder remote planner wiring with a Copilot SDK-backed hosted planner path while keeping the mock fallback as the default local-first experience.

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { exchangeCodeForToken, getGitHubUser } from "../../../../lib/githubAuth";
-import { createTownFromProfile, setLocalMockTownState } from "../../../../lib/mockData";
+import { seedOrReopenTownFromProfile } from "../../../../lib/mockData";
 import {
   encodeSession,
   OAUTH_STATE_COOKIE_NAME,
@@ -48,12 +48,11 @@ export async function GET(request: Request): Promise<Response> {
 
     const profile = await getGitHubUser(tokenData.access_token);
 
-    const town = createTownFromProfile({
+    const town = seedOrReopenTownFromProfile({
       login: profile.login,
       name: profile.name,
       avatar_url: profile.avatar_url,
     });
-    setLocalMockTownState(town);
 
     const payload: SessionPayload = {
       user: {

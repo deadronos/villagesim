@@ -78,6 +78,14 @@ function normalizeTownOwner(owner: TownOwner): TownOwner {
   };
 }
 
+function ownerFromGithubProfile(profile: GithubProfileSeed): TownOwner {
+  return normalizeTownOwner({
+    login: profile.login,
+    displayName: profile.name ?? profile.login,
+    ...(typeof profile.avatar_url === "string" ? { avatarUrl: profile.avatar_url } : {}),
+  });
+}
+
 function xmur3(seed: string): () => number {
   let h = 1779033703 ^ seed.length;
   for (let index = 0; index < seed.length; index += 1) {
@@ -302,11 +310,7 @@ export function createMockTown(options: CreateMockTownOptions = {}): TownState {
 }
 
 export function createTownFromProfile(profile: GithubProfileSeed, options: CreateMockTownOptions = {}): TownState {
-  const owner = normalizeTownOwner({
-    login: profile.login,
-    displayName: profile.name ?? profile.login,
-    ...(typeof profile.avatar_url === "string" ? { avatarUrl: profile.avatar_url } : {}),
-  });
+  const owner = ownerFromGithubProfile(profile);
   const town = createMockTown({
     ...options,
     id: options.id ?? `${profile.login}-town`,
@@ -316,6 +320,34 @@ export function createTownFromProfile(profile: GithubProfileSeed, options: Creat
   });
   town.metadata.createdFrom = "profile";
   return cloneTownState(town);
+}
+
+export function findLocalMockTownState(townId: string): TownState | null {
+  const existing = localTownStore.get(townId);
+  return existing ? cloneTownState(existing) : null;
+}
+
+export function seedOrReopenTownFromProfile(
+  profile: GithubProfileSeed,
+  options: CreateMockTownOptions = {},
+): TownState {
+  const townId = options.id ?? `${profile.login}-town`;
+  const existing = localTownStore.get(townId);
+
+  if (existing?.owner.login === profile.login && existing.metadata.createdFrom === "profile") {
+    const reopened = cloneTownState(existing);
+    reopened.owner = ownerFromGithubProfile(profile);
+    reopened.metadata.createdFrom = "profile";
+    if (options.tokenSummary !== undefined) {
+      reopened.metadata.tokenSummary = options.tokenSummary;
+    }
+    localTownStore.set(reopened.id, cloneTownState(reopened));
+    return cloneTownState(reopened);
+  }
+
+  const created = createTownFromProfile(profile, options);
+  localTownStore.set(created.id, cloneTownState(created));
+  return cloneTownState(created);
 }
 
 export function ensureLocalMockTownState(options: CreateMockTownOptions = {}): TownState {
@@ -343,6 +375,19 @@ export function resetLocalMockTown(options: CreateMockTownOptions = {}): TownSta
   const town = cloneTownState(createMockTown(options));
   localTownStore.set(town.id, town);
   return cloneTownState(town);
+}
+
+export function resetLocalMockTownFromExisting(town: TownState, options: Pick<CreateMockTownOptions, "seed"> = {}): TownState {
+  const resetTown = createMockTown({
+    id: town.id,
+    seed: options.seed ?? town.seed,
+    owner: town.owner,
+    name: town.name,
+    tokenSummary: town.metadata.tokenSummary,
+  });
+  resetTown.metadata.createdFrom = town.metadata.createdFrom;
+  localTownStore.set(resetTown.id, cloneTownState(resetTown));
+  return cloneTownState(resetTown);
 }
 
 export function listLocalMockTowns(): TownState[] {

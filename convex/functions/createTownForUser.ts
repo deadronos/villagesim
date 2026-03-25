@@ -1,6 +1,7 @@
-import { createTownFromProfile, type GithubProfileSeed, setLocalMockTownState } from "../../lib/mockData";
+import { seedOrReopenTownFromProfile, type GithubProfileSeed } from "../../lib/mockData";
 
 export interface CreateTownForUserArgs {
+  callerLogin?: string | null;
   profile: GithubProfileSeed;
   tokenSummary?: string | null;
   townId?: string;
@@ -9,12 +10,15 @@ export interface CreateTownForUserArgs {
 
 // Placeholder for future OAuth / Convex integration. Keeps local-first seeding coherent.
 export async function createTownForUser(_ctx: unknown, args: CreateTownForUserArgs) {
-  const town = createTownFromProfile(args.profile, {
+  if (args.callerLogin && args.callerLogin !== args.profile.login) {
+    throw new Error(`Town creation is only allowed for the authenticated user @${args.callerLogin}.`);
+  }
+
+  const town = seedOrReopenTownFromProfile(args.profile, {
     id: args.townId,
     seed: args.seed,
     tokenSummary: args.tokenSummary,
   });
-  setLocalMockTownState(town);
   return { ok: true, townId: town.id, town };
 }
 
