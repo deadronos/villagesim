@@ -1,0 +1,17 @@
+prompt: prompts/npc-planner.prompt.yml
+cases:
+  - id: farmer-work-loop
+    intent: work
+    expectation:
+      includesAnyStepTypes: [move, work]
+      maxSteps: 6
+  - id: market-trade-loop
+    intent: trade
+    expectation:
+      includesAnyStepTypes: [trade, speak]
+      maxSteps: 6
+  - id: social-check-in
+    intent: social
+    expectation:
+      includesAnyStepTypes: [move, speak]
+      maxSteps: 6

@@ -4,8 +4,10 @@ import { buildPlannerPrompt } from "./prompt_templates";
 import type {
   NpcPlan,
   NpcPlanStep,
+  PlannerFallbackReason,
   PlannerRequest,
   PlannerResult,
+  PlannerSource,
   Position,
   RandomSource,
 } from "./types";
@@ -71,6 +73,70 @@ function withIds(planId: string, payload: PlannerPayload, now: number, intent: P
     status: "pending",
     currentStepIndex: 0,
     steps,
+  };
+}
+
+function withPlannerMetadata(
+  plan: NpcPlan,
+  input: PlannerRequest,
+  options: {
+    source: PlannerSource;
+    queueId?: string;
+    latencyMs: number;
+    fallbackReason?: PlannerFallbackReason;
+    failureReason?: string | null;
+    completedAt?: number;
+  },
+): NpcPlan {
+  return {
+    ...plan,
+    planner: {
+      source: options.source,
+      queueId: options.queueId,
+      requestedAt: input.now,
+      completedAt: options.completedAt ?? input.now + options.latencyMs,
+      latencyMs: options.latencyMs,
+      fallbackReason: options.fallbackReason ?? null,
+      failureReason: options.failureReason ?? null,
+    },
+  };
+}
+
+function createPlannerResult(
+  input: PlannerRequest,
+  payload: PlannerPayload,
+  prompt: string,
+  options: {
+    source: PlannerSource;
+    latencyMs?: number;
+    queueId?: string;
+    fallbackReason?: PlannerFallbackReason;
+    failureReason?: string | null;
+    completedAt?: number;
+    planId?: string;
+  },
+): PlannerResult {
+  const latencyMs = options.latencyMs ?? 0;
+  const plan = withPlannerMetadata(
+    withIds(options.planId ?? nextPlanId(input), payload, input.now, input.intent),
+    input,
+    {
+      source: options.source,
+      queueId: options.queueId,
+      latencyMs,
+      fallbackReason: options.fallbackReason,
+      failureReason: options.failureReason ?? null,
+      completedAt: options.completedAt,
+    },
+  );
+
+  return {
+    source: options.source,
+    prompt,
+    plan,
+    latencyMs,
+    fallbackReason: options.fallbackReason,
+    failureReason: options.failureReason ?? null,
   };
 }
 
@@ -161,25 +227,54 @@ function buildMockPayload(input: PlannerRequest, rng: RandomSource): PlannerPayl
   }
 }
 
-async function requestRemotePlanner(input: PlannerRequest, prompt: string): Promise<PlannerPayload | null> {
+function readPlannerTimeoutMs(): number {
+  const parsed = Number.parseInt(process.env.VILLAGESIM_PLANNER_TIMEOUT_MS ?? "3000", 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 3000;
+  }
+  return parsed;
+}
+
+function normalizeErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Planner request failed";
+}
+
+async function requestRemotePlanner(prompt: string): Promise<PlannerPayload | null> {
   const apiUrl = process.env.MODEL_API_URL;
   const apiKey = process.env.MODEL_API_KEY;
   if (!apiUrl || !apiKey || process.env.MODEL_MOCK === "true") {
     return null;
   }
 
-  const response = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      prompt,
-      response_format: { type: "json_object" },
-      temperature: 0,
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), readPlannerTimeoutMs());
+  let response: Response;
+
+  try {
+    response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        prompt,
+        response_format: { type: "json_object" },
+        temperature: 0,
+      }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Planner proxy timed out after ${readPlannerTimeoutMs()}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     throw new Error(`Planner proxy request failed with ${response.status}`);
@@ -189,30 +284,70 @@ async function requestRemotePlanner(input: PlannerRequest, prompt: string): Prom
   return safeParsePlannerJson(payload);
 }
 
-export async function requestNpcPlan(input: PlannerRequest): Promise<PlannerResult> {
+export function createMockPlannerResult(
+  input: PlannerRequest,
+  options: {
+    prompt?: string;
+    latencyMs?: number;
+    fallbackReason?: PlannerFallbackReason;
+    failureReason?: string | null;
+  } = {},
+): PlannerResult {
+  const prompt = options.prompt ?? buildPlannerPrompt(input);
   const rng = input.rng ?? (() => 0.5);
+  const mockPayload = plannerPayloadSchema.parse(buildMockPayload(input, rng));
+  return createPlannerResult(input, mockPayload, prompt, {
+    source: "mock",
+    latencyMs: options.latencyMs ?? 0,
+    fallbackReason: options.fallbackReason,
+    failureReason: options.failureReason ?? null,
+  });
+}
+
+export function createQueuedPlaceholderPlannerResult(
+  input: PlannerRequest,
+  options: {
+    queueId: string;
+    prompt?: string;
+    latencyMs?: number;
+  },
+): PlannerResult {
+  const prompt = options.prompt ?? buildPlannerPrompt(input);
+  const placeholderPayload = plannerPayloadSchema.parse({
+    rationale: `Queued background planner request for ${input.npc.name}.`,
+    plan: [{ type: "wait", seconds: 1, note: "Wait for the hosted background planner to finish." }],
+  });
+  return createPlannerResult(input, placeholderPayload, prompt, {
+    source: "queued-placeholder",
+    queueId: options.queueId,
+    latencyMs: options.latencyMs ?? 0,
+    planId: `${options.queueId}:placeholder`,
+  });
+}
+
+export async function requestNpcPlan(input: PlannerRequest): Promise<PlannerResult> {
   const prompt = buildPlannerPrompt(input);
-  const planId = nextPlanId(input);
+  const startedAt = Date.now();
+  let failureReason: string | null = null;
 
   try {
-    const remotePayload = await requestRemotePlanner(input, prompt);
+    const remotePayload = await requestRemotePlanner(prompt);
     if (remotePayload) {
-      return {
+      return createPlannerResult(input, remotePayload, prompt, {
         source: "remote",
-        prompt,
-        plan: withIds(planId, remotePayload, input.now, input.intent),
-      };
+        latencyMs: Date.now() - startedAt,
+      });
     }
-  } catch {
-    // Fall back to the deterministic mock planner for the starter.
+  } catch (error) {
+    failureReason = normalizeErrorMessage(error);
   }
 
-  const mockPayload = plannerPayloadSchema.parse(buildMockPayload(input, rng));
-  return {
-    source: "mock",
+  return createMockPlannerResult(input, {
     prompt,
-    plan: withIds(planId, mockPayload, input.now, input.intent),
-  };
+    latencyMs: Date.now() - startedAt,
+    fallbackReason: failureReason ? "remote_failure" : undefined,
+    failureReason,
+  });
 }
 
 export const plannerSchemas = {

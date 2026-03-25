@@ -8,6 +8,7 @@ import {
   reseedTownFromExisting,
   seedOrReopenTownFromProfile,
 } from "./mockData";
+import { createHostedPlannerQueueForTick, drainHostedPlannerQueue } from "./plannerExecution";
 import { runLocalMockTick, runSimulationTick } from "./sim_engine";
 import type { SessionUser } from "./session";
 import type { SimulationTickResult, TownState } from "./types";
@@ -178,7 +179,11 @@ export async function runAuthoritativeTick(args: RunTickArgs): Promise<Simulatio
 
   let latestResult: SimulationTickResult | null = null;
   for (let index = 0; index < args.count; index += 1) {
-    latestResult = await runSimulationTick(town);
+    const hostedPlannerQueue = createHostedPlannerQueueForTick(town.id, town.tick + 1);
+    latestResult = await runSimulationTick(town, {
+      planner: hostedPlannerQueue.planner,
+    });
+    hostedPlannerQueue.finalizeTown(latestResult.town, latestResult.summary.planner);
     town = await saveConvexTown({
       callerLogin: args.callerLogin,
       town: latestResult.town,
@@ -195,4 +200,31 @@ export async function runAuthoritativeTick(args: RunTickArgs): Promise<Simulatio
   }
 
   return latestResult;
+}
+
+export async function dispatchHostedPlannerQueue(args: {
+  callerLogin?: string | null;
+  townId: string;
+}): Promise<{ processed: number; remaining: number }> {
+  if (!isHostedConvexModeEnabled()) {
+    return { processed: 0, remaining: 0 };
+  }
+
+  const town = await fetchConvexTown({
+    callerLogin: args.callerLogin,
+    townId: args.townId,
+  });
+
+  if (!town) {
+    return { processed: 0, remaining: 0 };
+  }
+
+  const dispatchResult = await drainHostedPlannerQueue(town);
+  if (dispatchResult.processed > 0) {
+    await saveConvexTown({
+      callerLogin: args.callerLogin,
+      town,
+    });
+  }
+  return dispatchResult;
 }

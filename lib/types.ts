@@ -18,6 +18,8 @@ export type PlanIntent = "work" | "trade" | "social" | "restock" | "explore";
 export type DecisionCandidateType = "work" | "eat" | "rest" | "social" | "trade" | "wait";
 export type ActionStatus = "pending" | "active" | "done" | "blocked";
 export type NpcActionType = "move" | "work" | "eat" | "rest" | "speak" | "trade" | "wait" | "gather";
+export type PlannerSource = "mock" | "remote" | "queued-placeholder";
+export type PlannerFallbackReason = "budget_exhausted" | "hosted_background_queue" | "remote_failure";
 
 export interface NpcNeeds {
   hunger: number;
@@ -180,6 +182,15 @@ export interface NpcPlan {
   status: ActionStatus;
   currentStepIndex: number;
   steps: NpcPlanStep[];
+  planner?: {
+    source: PlannerSource;
+    queueId?: string;
+    requestedAt?: number;
+    completedAt?: number;
+    latencyMs?: number;
+    fallbackReason?: PlannerFallbackReason | null;
+    failureReason?: string | null;
+  };
 }
 
 export interface NpcState {
@@ -208,9 +219,61 @@ export interface TownEvent {
     | "action_started"
     | "action_completed"
     | "plan_assigned"
-    | "plan_completed";
+    | "plan_completed"
+    | "planner_queued"
+    | "planner_completed"
+    | "planner_failed"
+    | "planner_fallback"
+    | "planner_budget_exhausted";
   message: string;
   details?: Record<string, unknown>;
+}
+
+export interface PlannerRequestSnapshot {
+  townId: string;
+  tick: number;
+  npc: NpcState;
+  env: NpcEnvironment;
+  intent: PlanIntent;
+  now: number;
+}
+
+export interface PlannerQueueEntry {
+  id: string;
+  npcId: string;
+  intent: PlanIntent;
+  requestedAt: number;
+  requestedTick: number;
+  prompt: string;
+  request: PlannerRequestSnapshot;
+  placeholderPlanId: string;
+  status: "queued" | "completed" | "failed";
+  assignedPlanId?: string;
+  appliedPlan?: boolean;
+  source?: Exclude<PlannerSource, "queued-placeholder">;
+  latencyMs?: number;
+  failureReason?: string | null;
+  fallbackReason?: PlannerFallbackReason | null;
+  completedAt?: number;
+}
+
+export interface TownPlannerState {
+  queue: PlannerQueueEntry[];
+  lastTickBudget: {
+    tick: number;
+    maxRequests: number;
+    usedRequests: number;
+    exhausted: boolean;
+  } | null;
+  metrics: {
+    totalQueued: number;
+    totalCompleted: number;
+    totalFailed: number;
+    totalFallbacks: number;
+    placeholderAssignments: number;
+    completedBySource: Partial<Record<Exclude<PlannerSource, "queued-placeholder">, number>>;
+    lastDispatchAt?: number;
+  };
 }
 
 export interface TownState {
@@ -232,6 +295,7 @@ export interface TownState {
     source: "mock" | "convex";
     tokenSummary: string | null;
     createdFrom: "seed" | "profile";
+    planner?: TownPlannerState;
   };
 }
 
@@ -294,6 +358,8 @@ export interface PlanRequiredDecision extends WeightedDecisionBase {
 export type WeightedDecisionResult = ImmediateActionDecision | PlanRequiredDecision;
 
 export interface PlannerRequest {
+  townId: string;
+  tick: number;
   npc: NpcState;
   env: NpcEnvironment;
   intent: PlanIntent;
@@ -304,7 +370,10 @@ export interface PlannerRequest {
 export interface PlannerResult {
   plan: NpcPlan;
   prompt: string;
-  source: "mock" | "remote";
+  source: PlannerSource;
+  latencyMs: number;
+  fallbackReason?: PlannerFallbackReason;
+  failureReason?: string | null;
 }
 
 export interface TickNpcResult {
@@ -322,6 +391,13 @@ export interface SimulationTickSummary {
   actionsStarted: number;
   actionsCompleted: number;
   plansAssigned: number;
+  planner: {
+    requested: number;
+    queuedRequests: number;
+    fallbackCount: number;
+    averageLatencyMs: number | null;
+    sourceCounts: Partial<Record<PlannerSource, number>>;
+  };
 }
 
 export interface SimulationTickResult {
