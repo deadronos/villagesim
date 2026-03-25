@@ -57,6 +57,7 @@ The planner service should require server-to-server authentication and request s
 - Require a shared bearer token.
 - Require a request timestamp and request ID.
 - Require an HMAC signature over the request payload and freshness metadata.
+- Standardize the app-side env/config vocabulary around `VILLAGESIM_PLANNER_SERVICE_URL`, `VILLAGESIM_PLANNER_SERVICE_TOKEN`, `VILLAGESIM_PLANNER_SERVICE_SIGNING_SECRET`, `VILLAGESIM_PLANNER_SERVICE_TIMEOUT_MS`, and `VILLAGESIM_PLANNER_MOCK`.
 - Reject stale or replayed requests.
 - Rate limit and cap body size aggressively.
 
@@ -66,6 +67,7 @@ Copilot-backed planner execution should live behind the planner service rather t
 
 - The private service may use Copilot SDK, Copilot CLI server mode, or another local provider adapter.
 - The service returns only validated planner JSON and never exposes tool traces or provider-specific internals to callers.
+- A shared contract module should define the planner payload plus the request metadata envelope so the app and planner service stay in lockstep.
 - The app preserves the existing deterministic mock fallback path when the service is unavailable or returns invalid output.
 
 ### Approval model for the first hosted rollout

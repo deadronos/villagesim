@@ -4,7 +4,7 @@ import Link from "next/link";
 import styles from "../styles/Home.module.css";
 
 const starterSteps = [
-  "Copy .env.example to .env.local and keep MODEL_MOCK=true for a local-first first run.",
+  "Copy .env.example to .env.local and keep VILLAGESIM_PLANNER_MOCK=true for a local-first first run.",
   "Install dependencies, then start the Next.js shell with npm run dev.",
   "Use the demo town route as the handoff target for the town renderer and backend tracks.",
 ];
