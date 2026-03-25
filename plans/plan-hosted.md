@@ -1,16 +1,18 @@
-# Hosted plan: GitHub-auth VillageSim with GitHub Models, Convex, and Next.js App Router
+# Hosted plan: GitHub-auth VillageSim with Copilot SDK, Convex, and Next.js App Router
 
 ## Summary
 
 This plan moves VillageSim from the current local-first starter to a hosted architecture with:
 
 - GitHub OAuth for player identity
-- optional user-provided GitHub PAT for planner access
-- encrypted server-side PAT storage
+- server-side reuse of the authenticated user's GitHub OAuth access for planner calls when possible
+- no planner authorization material exposed in client-visible session payloads
 - Next.js App Router for the hosted path
 - bleeding-edge Convex as authoritative state
-- GitHub Models as the first real NPC planner provider
+- Copilot SDK as the first real NPC planner provider
 - hybrid planner execution: inline for local/dev, queued for hosted
+
+The initial hosted planner target should be an included Copilot model such as `GPT-5 mini`, while still treating rate limits and the Copilot SDK's Technical Preview status as real operating constraints.
 
 The current ADRs and codebase already give us strong seams for this:
 
@@ -21,13 +23,15 @@ The current ADRs and codebase already give us strong seams for this:
 
 ## Key architectural decisions
 
-### 1. Keep identity and planner authorization separate
+### 1. Keep identity and planner authorization boundaries explicit
 
 GitHub sign-in should establish app identity and session ownership.
 
-GitHub Models access should be authorized separately via a supported credential path, initially a user-provided PAT with `models` access, persisted only in encrypted server-side storage.
+Hosted planner calls should prefer reusing the authenticated user's GitHub OAuth token server-side for Copilot SDK access.
 
-A PAT must not become the app's primary login mechanism.
+Planner authorization material must remain server-side and must not be serialized into `__vs_session` or other client-visible payloads.
+
+If implementation discovery shows that OAuth-token reuse is insufficient for the hosted Copilot SDK path, a separate planner authorization mechanism can be added later without changing the player-login model.
 
 ### 2. Migrate to App Router as part of the hosted effort
 
@@ -74,15 +78,18 @@ Convex should become the authoritative storage and orchestration boundary for:
 - GitHub OAuth for sign-in
 - session-based app identity in Next.js
 - Convex auth bridge for reactive authenticated data access
-- optional planner token management UI for PAT connect/revoke/test
+- server-side reuse of authenticated GitHub OAuth access for planner calls
+- optional lightweight planner status UI if the hosted path needs user-visible diagnostics
 
 ### Planner
 
 - `lib/model_proxy.ts` becomes a provider-backed adapter
 - providers:
   - `mock`
-  - `githubModels`
-- GitHub Models is used server-side only
+  - `copilotSdk`
+- Copilot SDK is used server-side only
+- the initial hosted model target is an included Copilot model such as `GPT-5 mini`
+- rate limiting and Technical Preview constraints are treated as part of the hosted rollout design
 - planner output remains bound to the current structured `NpcPlan` schema
 
 ### State and execution
@@ -142,34 +149,34 @@ Add GitHub sign-in and stable user identity/session ownership.
 
 - a signed-in user can open their hosted town
 - town ownership is associated with authenticated app identity
-- PATs are not required for login
+- no separate planner connect step is required for player login
 
-## Phase 3 — PAT vault and GitHub Models planner provider
+## Phase 3 — Copilot SDK planner integration and hosted planner auth
 
 ### Phase 3 goal
 
-Allow users to opt into real NPC planning via GitHub Models.
+Allow authenticated users to opt into real NPC planning via Copilot SDK.
 
 ### Phase 3 scope
 
-- add optional PAT connect flow
-- validate PATs for model access before storing
-- encrypt PATs server-side
+- reuse the authenticated user's GitHub OAuth token server-side for planner calls when possible
+- keep planner authorization material out of the signed session cookie
 - refactor `lib/model_proxy.ts` to support providers
-- implement GitHub Models provider with deterministic structured JSON output
+- implement a `copilotSdk` provider with deterministic structured JSON output
 - preserve zod validation and deterministic fallback behavior
+- document rate-limit and Technical Preview handling for the hosted planner path
 
 ### Phase 3 deliverables
 
-- planner settings/connect UI
-- encrypted PAT storage path
-- `githubModels` planner provider
+- hosted planner auth reuse path
+- `copilotSdk` planner provider
 - planner diagnostics and fallback reasons
+- optional planner status UI if the hosted flow needs to expose planner availability
 
 ### Phase 3 exit criteria
 
-- a connected user PAT can authorize NPC planner calls
-- invalid/missing/rate-limited planner access fails safely
+- an authenticated user can authorize NPC planner calls through the hosted Copilot SDK path
+- missing auth, missing Copilot entitlement, rate-limited access, or provider failure all fail safely
 - planner output still satisfies the shared schema
 
 ## Phase 4 — Convex authoritative state and hosted execution
@@ -258,8 +265,8 @@ Make planner execution production-safe on hosted infrastructure.
 - App Router parity for current routes
 - GitHub sign-in works end to end
 - hosted town ownership is tied to authenticated user identity
-- PATs are encrypted server-side and never exposed after submission
-- GitHub Models planner responses still pass zod validation
+- planner authorization material remains server-side and never appears in the session cookie
+- Copilot SDK planner responses still pass zod validation
 - planner failures degrade safely to mock or deterministic fallback behavior
 - Convex becomes authoritative in hosted mode
 - hosted planner execution is budgeted and observable
@@ -272,7 +279,7 @@ The GitHub issue structure for this plan should be:
 - umbrella issue: Hosted VillageSim plan
 - phase issue 1: Architecture and App Router foundation
 - phase issue 2: GitHub auth and hosted identity
-- phase issue 3: PAT vault and GitHub Models planner provider
+- phase issue 3: Copilot SDK planner integration and hosted planner auth
 - phase issue 4: Convex authoritative state and hosted execution
 - phase issue 5: Planner execution hardening, budgets, and evaluations
 
