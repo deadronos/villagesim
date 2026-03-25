@@ -89,6 +89,7 @@ The shared planner seam now uses `VILLAGESIM_PLANNER_SERVICE_*` names for the pr
 - `lib/npc_decision.ts` handles fast weighted decisions with injectable RNG.
 - `lib/plannerContract.ts` defines the shared zod-validated planner request/response contract used by the app-side planner seam.
 - `lib/model_proxy.ts` provides the deterministic mock planner plus the private planner-service transport that preserves mock fallback semantics.
+- `services/planner/` provides the first Docker-friendly private planner service with signed `/plan` requests, replay protection, rate limiting, and a mock provider for service-side validation.
 - `lib/sim_engine.ts` applies actions, assigns plans, and advances ticks.
 - `app/api/tick/route.ts` advances either the local mock town or the hosted Convex town and returns structured JSON for the UI.
 - `workers/tick.ts` and `workers/worker_helpers.ts` exercise the same simulation logic outside the request path.
@@ -97,4 +98,4 @@ The shared planner seam now uses `VILLAGESIM_PLANNER_SERVICE_*` names for the pr
 
 - Replace the mock in-memory town store with real Convex reads and mutations.
 - Move GitHub-auth town ownership from the in-memory mock bridge into Convex-backed persistence.
-- Implement the private planner service itself so the shared planner contract can be validated on both sides of the hosted boundary.
+- Add the first real hosted planner adapter behind the private planner service while preserving the shared validated contract.
