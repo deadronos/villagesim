@@ -40,6 +40,17 @@ Use a self-contained signed cookie (`__vs_session`) with no server-side session 
 - **Cookie flags**: `HttpOnly`, `SameSite=Lax`, `Secure` in production, 7-day `Max-Age`.
 - Falls back to a clearly-labelled insecure dev secret when `SESSION_SECRET` is unset or left as the example placeholder.
 
+### Manual approval rollout
+
+Keep the current GitHub OAuth + signed-cookie session model for the first hosted rollout.
+
+Hosted access should initially stay private by requiring an env-configured allowlist of approved GitHub logins before a session is established for a profile-owned town.
+
+- **Mechanism**: add an application-side env var such as `APPROVED_GITHUB_LOGINS` containing a comma-separated list of allowed GitHub logins.
+- **Enforcement point**: check the authenticated GitHub profile in `/api/auth/callback` before creating or reopening the hosted town and before setting `__vs_session`.
+- **Scope**: this approval gate applies to authenticated/profile-owned hosted access, not to the local seeded demo-town flow used for local-first development.
+- **Future evolution**: the allowlist can later move into Convex-backed admin data without changing the player-facing OAuth/session contract.
+
 ### Planner authorization boundary
 
 The hosted planner path should prefer reusing the authenticated user's GitHub OAuth token server-side for Copilot SDK calls.
@@ -85,6 +96,7 @@ When Convex is integrated, the session payload (`login`, `townId`) serves as the
 ## Consequences
 
 - Users can sign in with GitHub and immediately open their own hosted town without a separate planner connect flow.
+- The first hosted rollout can stay intentionally private by approving only specific GitHub logins via env/configuration while avoiding a separate admin UI.
 - Town ownership is stable and deterministic: `{github-login}-town` maps 1:1 to the authenticated user.
 - Sessions are stateless (no DB table) and self-describing, making horizontal scaling straightforward before a session store is needed.
 - The session payload is minimal — it never contains the GitHub access token or future planner authorization data, keeping the cookie footprint small and reducing exposure if the `SESSION_SECRET` rotates.
