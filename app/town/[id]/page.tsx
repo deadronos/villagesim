@@ -17,6 +17,13 @@ interface TownPageProps {
   }>;
 }
 
+function redirectToSessionTownOrHome(sessionTownId: string | null | undefined): never {
+  if (sessionTownId) {
+    redirect(`/town/${encodeURIComponent(sessionTownId)}`);
+  }
+  redirect("/");
+}
+
 export async function generateMetadata({ params }: TownPageProps): Promise<Metadata> {
   const { id } = await params;
   const townId = normalizeTownId(id);
@@ -45,10 +52,7 @@ export default async function TownPage({ params }: TownPageProps) {
       });
     } catch (error) {
       if (isTownAccessError(error)) {
-        if (session?.townId) {
-          redirect(`/town/${encodeURIComponent(session.townId)}`);
-        }
-        redirect("/");
+        redirectToSessionTownOrHome(session?.townId);
       }
       throw error;
     }
@@ -56,20 +60,14 @@ export default async function TownPage({ params }: TownPageProps) {
     const existingTown = findLocalMockTownState(initialTownId);
 
     if (existingTown && !canAccessTown(existingTown, session?.user.login)) {
-      if (session?.townId) {
-        redirect(`/town/${encodeURIComponent(session.townId)}`);
-      }
-      redirect("/");
+      redirectToSessionTownOrHome(session?.townId);
     }
 
     initialTown = existingTown ?? ensureLocalMockTownState({ id: initialTownId });
   }
 
   if (!initialTown) {
-    if (session?.townId) {
-      redirect(`/town/${encodeURIComponent(session.townId)}`);
-    }
-    redirect("/");
+    redirectToSessionTownOrHome(session?.townId);
   }
 
   return (

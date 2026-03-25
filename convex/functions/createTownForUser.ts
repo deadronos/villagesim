@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 
-import { createTownFromProfile, type GithubProfileSeed } from "../../lib/mockData";
+import { cloneTownState, createTownFromProfile, type GithubProfileSeed } from "../../lib/mockData";
 import { internalMutation } from "../_generated/server";
 import { readTownFromConvex, writeTownToConvex } from "../townStateStore";
 
@@ -40,14 +40,14 @@ export const createTownForUser = internalMutation({
     const townId = args.townId ?? `${args.profile.login}-town`;
     const existing = await readTownFromConvex(ctx.db, townId);
 
-    if (existing?.owner.login === args.profile.login && existing.metadata.createdFrom === "profile") {
-      existing.owner = ownerFromProfile(args.profile);
-      existing.metadata.createdFrom = "profile";
+    if (existing && existing.owner.login === args.profile.login && existing.metadata.createdFrom === "profile") {
+      const reopened = cloneTownState(existing);
+      reopened.owner = ownerFromProfile(args.profile);
       if (args.tokenSummary !== undefined) {
-        existing.metadata.tokenSummary = args.tokenSummary;
+        reopened.metadata.tokenSummary = args.tokenSummary;
       }
 
-      const town = await writeTownToConvex(ctx.db, existing);
+      const town = await writeTownToConvex(ctx.db, reopened);
       return { ok: true, townId: town.id, town };
     }
 

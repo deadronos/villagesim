@@ -56,9 +56,11 @@ const createTownForUserMutation =
 const saveTownStateMutation = makeFunctionReference<"mutation", SaveTownStateArgs, TownState>(
   "functions/saveTownState:saveTownState",
 );
+const STATE_MODE_MOCK = "mock";
+const STATE_MODE_CONVEX = "convex";
 
 function readHostedMode(): string {
-  return process.env.VILLAGESIM_STATE_MODE?.trim().toLowerCase() ?? "mock";
+  return process.env.VILLAGESIM_STATE_MODE?.trim().toLowerCase() ?? STATE_MODE_MOCK;
 }
 
 function getConvexOptions() {
@@ -66,10 +68,10 @@ function getConvexOptions() {
   const adminToken = process.env.CONVEX_ADMIN_KEY;
 
   if (!url || url === "https://your-convex-deployment.convex.cloud") {
-    throw new Error("Hosted Convex mode requires a real CONVEX_URL value.");
+    throw new Error("Convex hosted mode requires CONVEX_URL to be set to your deployment URL.");
   }
   if (!adminToken || adminToken === "convex_admin_key_for_local_worker") {
-    throw new Error("Hosted Convex mode requires a real CONVEX_ADMIN_KEY value.");
+    throw new Error("Convex hosted mode requires CONVEX_ADMIN_KEY to be set to your deployment admin key.");
   }
 
   return {
@@ -100,7 +102,7 @@ async function createConvexTownForUser(args: CreateTownForUserArgs): Promise<Tow
 }
 
 export function isHostedConvexModeEnabled(): boolean {
-  return readHostedMode() === "convex";
+  return readHostedMode() === STATE_MODE_CONVEX;
 }
 
 export async function createOrReopenTownForProfile(args: {
@@ -164,7 +166,7 @@ export async function runAuthoritativeTick(args: RunTickArgs): Promise<Simulatio
   let town = await ensureAuthoritativeTown(args);
 
   if (!town) {
-    throw new Error(`Town ${args.townId} was not found.`);
+    throw new Error(`Town ${args.townId} was not found in Convex hosted storage.`);
   }
 
   if (args.reset) {

@@ -46,7 +46,7 @@ function jsonResponse(body: unknown, status = 200) {
   return response;
 }
 
-function getSession(request: Request) {
+function getSessionOrNull(request: Request) {
   return getSessionFromCookieHeader(request.headers.get("cookie") ?? "");
 }
 
@@ -76,7 +76,7 @@ async function handleTick(request: Request, source: Record<string, unknown>) {
     const seed = firstString(source.seed);
     const reset = parseBoolean(source.reset);
     const count = parseTickCount(source.count);
-    const session = getSession(request);
+    const session = getSessionOrNull(request);
     const callerLogin = session?.user.login ?? null;
 
     if (isHostedConvexModeEnabled()) {

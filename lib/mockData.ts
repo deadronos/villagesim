@@ -392,7 +392,7 @@ export function reseedTownFromExisting(town: TownState, options: Pick<CreateMock
 export function resetLocalMockTownFromExisting(town: TownState, options: Pick<CreateMockTownOptions, "seed"> = {}): TownState {
   const resetTown = reseedTownFromExisting(town, options);
   localTownStore.set(resetTown.id, cloneTownState(resetTown));
-  return cloneTownState(resetTown);
+  return resetTown;
 }
 
 export function listLocalMockTowns(): TownState[] {
