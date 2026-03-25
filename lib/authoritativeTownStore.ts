@@ -9,7 +9,8 @@ import {
   seedOrReopenTownFromProfile,
 } from "./mockData";
 import { createHostedPlannerQueueForTick, drainHostedPlannerQueue } from "./plannerExecution";
-import { runLocalMockTick, runSimulationTick } from "./sim_engine";
+import { runLocalMockTick } from "./localTick";
+import { runSimulationTick } from "./sim_engine";
 import type { SessionUser } from "./session";
 import type { SimulationTickResult, TownState } from "./types";
 

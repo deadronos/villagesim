@@ -7,13 +7,14 @@ import {
   listTownNpcs,
   setLocalMockTownState,
 } from "./mockData";
-import { requestNpcPlan } from "./model_proxy";
 import { weightedDecision } from "./npc_decision";
 import type {
   NpcAction,
   NpcPlan,
   NpcPlanStep,
   NpcState,
+  PlannerRequest,
+  PlannerResult,
   RandomSource,
   SimulationTickResult,
   TickNpcResult,
@@ -21,11 +22,13 @@ import type {
   TownState,
 } from "./types";
 
+export type SimulationTickPlanner = (input: PlannerRequest) => Promise<PlannerResult> | PlannerResult;
+
 export interface SimulationTickOptions {
   callerLogin?: string | null;
   now?: number;
   rng?: RandomSource;
-  planner?: typeof requestNpcPlan;
+  planner?: SimulationTickPlanner;
 }
 
 function clampNeed(value: number): number {
@@ -359,6 +362,40 @@ function makeNpcResult(npc: NpcState): TickNpcResult {
   };
 }
 
+function createFallbackPlannerResult(input: PlannerRequest): PlannerResult {
+  const now = input.now;
+  return {
+    source: "mock",
+    prompt: `Fallback planner used for ${input.npc.id}`,
+    latencyMs: 0,
+    plan: {
+      id: `${input.npc.id}:${input.intent}:${now}:fallback`,
+      intent: input.intent,
+      rationale: `Fallback planner used for ${input.npc.name}.`,
+      createdAt: now,
+      updatedAt: now,
+      status: "pending",
+      currentStepIndex: 0,
+      steps: [
+        {
+          id: `${input.npc.id}:${input.intent}:${now}:fallback:step-1`,
+          type: "wait",
+          seconds: 1,
+          status: "pending",
+        },
+      ],
+      planner: {
+        source: "mock",
+        requestedAt: now,
+        completedAt: now,
+        latencyMs: 0,
+        fallbackReason: null,
+        failureReason: null,
+      },
+    },
+  };
+}
+
 export async function runSimulationTick(
   sourceTown: TownState,
   options: SimulationTickOptions = {},
@@ -367,7 +404,7 @@ export async function runSimulationTick(
   town.tick += 1;
   town.now = options.now ?? town.now + 60_000;
   const rng = options.rng ?? createSeededRng(`${town.seed}:${town.tick}`);
-  const planner = options.planner ?? requestNpcPlan;
+  const planner = options.planner ?? createFallbackPlannerResult;
   const npcResults = listTownNpcs(town).map(makeNpcResult);
   const resultIndex = new Map(npcResults.map((npcResult) => [npcResult.npcId, npcResult]));
   let actionsStarted = 0;

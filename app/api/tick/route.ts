@@ -11,7 +11,7 @@ import {
 import { getSessionFromCookieHeader } from "../../../lib/session";
 import { dispatchHostedPlannerQueue, isHostedConvexModeEnabled, runAuthoritativeTick } from "../../../lib/authoritativeTownStore";
 import { hasQueuedPlannerRequests } from "../../../lib/plannerExecution";
-import { runLocalMockTick } from "../../../lib/sim_engine";
+import { runLocalMockTick } from "../../../lib/localTick";
 import { assertCanWriteTown, isTownAccessError, TownAccessError } from "../../../lib/townAccess";
 
 export const dynamic = "force-dynamic";
