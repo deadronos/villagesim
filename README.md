@@ -47,7 +47,25 @@ VillageSim is a local-first starter for a 2D village simulation MVP. It includes
 - `npm run build` — create a production build.
 - `npm run start` — run the production build locally.
 - `npm run lint` — run the ESLint CLI checks for the Next.js app.
+- `npm run test` — run the full Vitest suite.
+- `npm run test:watch` — run Vitest in watch mode during local development.
+- `npm run test:coverage` — run the suite with coverage output in `coverage/`.
+- `npm run test:unit` — run unit tests under `tests/unit/`.
+- `npm run test:integration` — run integration tests under `tests/integration/`.
+- `npm run test:component` — run jsdom component tests under `tests/component/`.
 - `npm run tick:mock -- --town demo-town --count 1` — run the local worker tick against the seeded town.
+
+## Testing
+
+VillageSim now uses Vitest for fast local testing across three layers:
+
+- **Unit tests** in `tests/unit/` for focused pure-module behavior such as session encoding/parsing and planner helpers.
+- **Integration tests** in `tests/integration/` for multi-module flows such as simulation ticks and local state persistence.
+- **Component tests** in `tests/component/` using jsdom + React Testing Library for client components.
+
+The current test strategy deliberately excludes end-to-end browser tests for now. The goal is to build reliable fast feedback around the shared simulation code, auth/session helpers, and React UI before adding a heavier E2E layer.
+
+Component tests use the `@vitest-environment jsdom` docblock and share a common setup file that enables Testing Library cleanup and `jest-dom` matchers.
 
 ## Environment notes
 

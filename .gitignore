@@ -3,6 +3,7 @@
 node_modules
 .next
 out
+coverage
 .env.local
 .env*.local
 .vercel

@@ -29,3 +29,4 @@ Each ADR uses a numbered filename such as `001-description.md` so new decisions 
 - `technicaldecisions/009-use-convex-as-the-hosted-authoritative-town-store.md`
 - `technicaldecisions/010-queue-hosted-planner-execution-and-budget-it.md`
 - `technicaldecisions/011-use-a-private-planner-service-for-hosted-execution.md`
+- `technicaldecisions/012-use-vitest-for-unit-integration-and-component-tests.md`
