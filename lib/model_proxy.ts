@@ -236,7 +236,7 @@ function readPlannerTimeoutMs(): number {
 }
 
 function normalizeErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message) {
+  if (error instanceof Error) {
     return error.message;
   }
   return "Planner request failed";

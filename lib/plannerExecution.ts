@@ -16,7 +16,7 @@ const MAX_RETAINED_QUEUE_ITEMS = 40;
 
 function readPositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? "", 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
+  if (Number.isNaN(parsed) || parsed <= 0) {
     return fallback;
   }
   return parsed;
@@ -94,7 +94,7 @@ export function createHostedPlannerQueueForTick(townId: string, tick: number) {
       if (usedBudget < budget) {
         usedBudget += 1;
         const prompt = buildPlannerPrompt(input);
-        const queueId = `${townId}:${tick}:${input.npc.id}:${usedBudget}:${input.now}`;
+        const queueId = `${townId}:${tick}:${input.npc.id}:${input.intent}:${usedBudget}:${input.now}`;
         const placeholder = createQueuedPlaceholderPlannerResult(input, { queueId, prompt });
         queued.push({
           id: queueId,
