@@ -80,7 +80,7 @@ The provided `.env.example` includes placeholders for:
 
 Hosted GitHub sign-in stays private-alpha by default. Add a comma-separated list of approved GitHub logins to `APPROVED_GITHUB_LOGINS` before testing OAuth locally. Unapproved users are redirected back to `/` with an explicit denial message, and the local `demo-town` flow continues to work without OAuth.
 
-The shared planner seam now uses `VILLAGESIM_PLANNER_SERVICE_*` names for the private service path while keeping `VILLAGESIM_PLANNER_MOCK=true` as the default local-first behavior. Legacy `MODEL_*` aliases are still accepted for compatibility during the transition.
+The shared planner seam now uses `VILLAGESIM_PLANNER_SERVICE_*` names for the private service path while keeping `VILLAGESIM_PLANNER_MOCK=true` as the default local-first behavior. Legacy `MODEL_*` aliases are still accepted for compatibility during the transition. When the service path is enabled, the app sends signed server-side planner requests with a strict timeout, retries only bounded transient failures, and falls back to the deterministic mock planner if the private service is unavailable.
 
 ## Local-first architecture
 

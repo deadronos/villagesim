@@ -1,6 +1,7 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 
 import * as plannerContract from "../../../lib/plannerContract";
+import { computePlannerSignature } from "../../../lib/plannerSigning";
 import type { PlannerServiceRequest } from "../../../lib/plannerContract";
 
 const plannerContractModule = ("default" in plannerContract ? plannerContract.default : plannerContract) as typeof import("../../../lib/plannerContract");
@@ -57,9 +58,7 @@ function headerValue(headers: Headers, name: string): string | null {
   return normalized ? normalized : null;
 }
 
-export function computePlannerSignature(body: string, requestId: string, requestedAt: string, signingSecret: string): string {
-  return createHmac("sha256", signingSecret).update(`${requestId}.${requestedAt}.${body}`).digest("hex");
-}
+export { computePlannerSignature } from "../../../lib/plannerSigning";
 
 function assertValidBearerToken(authorizationHeader: string | null, expectedToken: string): void {
   if (!authorizationHeader?.startsWith("Bearer ")) {

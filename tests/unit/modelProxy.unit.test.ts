@@ -7,6 +7,7 @@ import type { PlannerRequest } from "../../lib/types";
 const ENV_KEYS = [
   "VILLAGESIM_PLANNER_MOCK",
   "VILLAGESIM_PLANNER_SERVICE_SIGNING_SECRET",
+  "VILLAGESIM_PLANNER_SERVICE_TIMEOUT_MS",
   "VILLAGESIM_PLANNER_SERVICE_TOKEN",
   "VILLAGESIM_PLANNER_SERVICE_URL",
 ] as const;
@@ -121,5 +122,91 @@ describe("requestNpcPlan", () => {
     expect(result.fallbackReason).toBe("remote_failure");
     expect(result.failureReason).toBe("planner service unavailable");
     expect(result.plan.steps.length).toBeGreaterThan(0);
+  });
+
+  it("retries once when the planner service returns a transient failure", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "planner_provider_failed" }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            requestId: "planner-response-2",
+            plan: {
+              rationale: "Recovered planner response",
+              plan: [{ type: "wait", seconds: 1, note: "Retry succeeded." }],
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await requestNpcPlan(createPlannerRequest());
+
+    expect(result.source).toBe("remote");
+    expect(result.plan.rationale).toBe("Recovered planner response");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const firstInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const secondInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    const firstBody = JSON.parse(String(firstInit.body)) as { metadata: { requestId: string } };
+    const secondBody = JSON.parse(String(secondInit.body)) as { metadata: { requestId: string } };
+
+    expect(firstBody.metadata.requestId).not.toBe(secondBody.metadata.requestId);
+  });
+
+  it("does not retry non-transient planner-service failures", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: "invalid_signature" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await requestNpcPlan(createPlannerRequest());
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(result.source).toBe("mock");
+    expect(result.failureReason).toBe("Planner service request failed with 401 (invalid_signature)");
+  });
+
+  it("aborts planner-service requests that exceed the configured timeout", async () => {
+    process.env.VILLAGESIM_PLANNER_SERVICE_TIMEOUT_MS = "5";
+
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const signal = init?.signal;
+      if (!(signal instanceof AbortSignal)) {
+        throw new Error("Expected AbortSignal");
+      }
+
+      return await new Promise<Response>((_resolve, reject) => {
+        signal.addEventListener(
+          "abort",
+          () => {
+            const abortError = new Error("The operation was aborted.");
+            abortError.name = "AbortError";
+            reject(abortError);
+          },
+          { once: true },
+        );
+      });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await requestNpcPlan(createPlannerRequest());
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.source).toBe("mock");
+    expect(result.failureReason).toBe("Planner service timed out after 5ms");
   });
 });

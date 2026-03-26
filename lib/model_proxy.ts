@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 import { buildPlannerPrompt } from "./prompt_templates";
 import { isPlannerServiceEnabled, readPlannerServiceConfig } from "./plannerConfig";
@@ -14,6 +14,7 @@ import {
   type PlannerPayload,
   type PlannerPayloadStep,
 } from "./plannerContract";
+import { createPlannerServiceHeaders } from "./plannerSigning";
 import type {
   NpcPlan,
   NpcPlanStep,
@@ -24,6 +25,21 @@ import type {
   Position,
   RandomSource,
 } from "./types";
+
+const RETRYABLE_PLANNER_SERVICE_STATUS_CODES = new Set([408, 502, 503, 504]);
+const MAX_PLANNER_SERVICE_ATTEMPTS = 2;
+
+class PlannerServiceRequestError extends Error {
+  constructor(
+    message: string,
+    readonly options: {
+      retryable: boolean;
+      status?: number;
+    },
+  ) {
+    super(message);
+  }
+}
 
 function nextPlanId(input: PlannerRequest): string {
   return `${input.npc.id}:${input.intent}:${input.now}`;
@@ -194,17 +210,8 @@ function normalizeErrorMessage(error: unknown): string {
   return "Planner request failed";
 }
 
-function signPlannerServiceRequest(body: string, requestId: string, requestedAt: string, signingSecret: string): string {
-  return createHmac("sha256", signingSecret).update(`${requestId}.${requestedAt}.${body}`).digest("hex");
-}
-
-async function requestRemotePlanner(input: PlannerRequest, prompt: string): Promise<PlannerPayload | null> {
-  const config = readPlannerServiceConfig();
-  if (!isPlannerServiceEnabled(config) || !config.url || !config.token) {
-    return null;
-  }
-
-  const requestEnvelope = createPlannerServiceRequest({
+function createPlannerServiceEnvelope(input: PlannerRequest, prompt: string) {
+  return createPlannerServiceRequest({
     callerLogin: input.callerLogin ?? null,
     intent: input.intent,
     npcId: input.npc.id,
@@ -215,48 +222,104 @@ async function requestRemotePlanner(input: PlannerRequest, prompt: string): Prom
     tick: input.tick,
     townId: input.townId,
   });
-  const body = JSON.stringify(requestEnvelope);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
-  let response: Response;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${config.token}`,
-    "X-VillageSim-Request-Id": requestEnvelope.metadata.requestId,
-    "X-VillageSim-Requested-At": requestEnvelope.metadata.requestedAt,
-  };
+}
 
-  if (config.signingSecret) {
-    headers["X-VillageSim-Signature"] = signPlannerServiceRequest(
-      body,
-      requestEnvelope.metadata.requestId,
-      requestEnvelope.metadata.requestedAt,
-      config.signingSecret,
-    );
-  }
+async function readPlannerServiceFailure(response: Response): Promise<string> {
+  let errorCode: string | null = null;
 
   try {
-    response = await fetch(config.url, {
+    const payload = (await response.json()) as { error?: unknown };
+    if (typeof payload.error === "string" && payload.error.trim()) {
+      errorCode = payload.error;
+    }
+  } catch {
+    // Ignore non-JSON failure payloads and fall back to the HTTP status text.
+  }
+
+  return errorCode
+    ? `Planner service request failed with ${response.status} (${errorCode})`
+    : `Planner service request failed with ${response.status}`;
+}
+
+function shouldRetryPlannerServiceRequest(error: unknown): boolean {
+  return error instanceof PlannerServiceRequestError && error.options.retryable;
+}
+
+async function sendPlannerServiceRequest(
+  url: string,
+  body: string,
+  headers: Record<string, string>,
+  timeoutMs: number,
+): Promise<PlannerPayload> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
       method: "POST",
       headers,
       body,
       signal: controller.signal,
     });
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`Planner service timed out after ${config.timeoutMs}ms`);
+
+    if (!response.ok) {
+      throw new PlannerServiceRequestError(await readPlannerServiceFailure(response), {
+        retryable: RETRYABLE_PLANNER_SERVICE_STATUS_CODES.has(response.status),
+        status: response.status,
+      });
     }
-    throw error;
+
+    const payload = await response.json();
+    return parsePlannerPayload(payload);
+  } catch (error) {
+    if (error instanceof PlannerServiceRequestError) {
+      throw error;
+    }
+
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new PlannerServiceRequestError(`Planner service timed out after ${timeoutMs}ms`, {
+        retryable: true,
+      });
+    }
+
+    throw new PlannerServiceRequestError(normalizeErrorMessage(error), {
+      retryable: true,
+    });
   } finally {
     clearTimeout(timeout);
   }
+}
 
-  if (!response.ok) {
-    throw new Error(`Planner service request failed with ${response.status}`);
+async function requestRemotePlanner(input: PlannerRequest, prompt: string): Promise<PlannerPayload | null> {
+  const config = readPlannerServiceConfig();
+  if (!isPlannerServiceEnabled(config) || !config.url || !config.token) {
+    return null;
   }
 
-  const payload = await response.json();
-  return parsePlannerPayload(payload);
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= MAX_PLANNER_SERVICE_ATTEMPTS; attempt += 1) {
+    const requestEnvelope = createPlannerServiceEnvelope(input, prompt);
+    const body = JSON.stringify(requestEnvelope);
+    const headers = createPlannerServiceHeaders({
+      body,
+      requestId: requestEnvelope.metadata.requestId,
+      requestedAt: requestEnvelope.metadata.requestedAt,
+      signingSecret: config.signingSecret,
+      token: config.token,
+    });
+
+    try {
+      return await sendPlannerServiceRequest(config.url, body, headers, config.timeoutMs);
+    } catch (error) {
+      lastError = error;
+      if (attempt >= MAX_PLANNER_SERVICE_ATTEMPTS || !shouldRetryPlannerServiceRequest(error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError ?? new Error("Planner service request failed");
 }
 
 export function createMockPlannerResult(
