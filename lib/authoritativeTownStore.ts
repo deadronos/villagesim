@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { makeFunctionReference } from "convex/server";
 
@@ -8,13 +10,22 @@ import {
   reseedTownFromExisting,
   seedOrReopenTownFromProfile,
 } from "./mockData";
-import { createHostedPlannerQueueForTick, drainHostedPlannerQueue } from "./plannerExecution";
+import { requestNpcPlan } from "./model_proxy";
+import {
+  claimHostedPlannerQueueEntry,
+  completeHostedPlannerQueueEntry,
+  createHostedPlannerQueueForTick,
+  failHostedPlannerQueueEntry,
+  recordHostedPlannerDispatchMetrics,
+  readHostedPlannerDrainPerDispatch,
+} from "./plannerExecution";
 import { runLocalMockTick } from "./localTick";
 import { runSimulationTick } from "./sim_engine";
 import type { SessionUser } from "./session";
-import type { SimulationTickResult, TownState } from "./types";
+import type { PlannerDispatchSource, SimulationTickResult, TownState } from "./types";
 
 interface GetTownArgs extends Record<string, unknown> {
+  bypassAccessCheck?: boolean;
   callerLogin?: string | null;
   townId: string;
   seed?: string;
@@ -33,6 +44,7 @@ interface CreateTownForUserArgs extends Record<string, unknown> {
 }
 
 interface SaveTownStateArgs extends Record<string, unknown> {
+  bypassAccessCheck?: boolean;
   callerLogin?: string | null;
   town: TownState;
 }
@@ -205,28 +217,178 @@ export async function runAuthoritativeTick(args: RunTickArgs): Promise<Simulatio
 }
 
 export async function dispatchHostedPlannerQueue(args: {
+  bypassAccessCheck?: boolean;
   callerLogin?: string | null;
+  source?: PlannerDispatchSource;
   townId: string;
-}): Promise<{ processed: number; remaining: number }> {
+}): Promise<{
+  claimed: number;
+  completed: number;
+  dispatching: number;
+  failed: number;
+  processed: number;
+  queued: number;
+  remaining: number;
+  skipped: number;
+}> {
   if (!isHostedConvexModeEnabled()) {
-    return { processed: 0, remaining: 0 };
+    return {
+      claimed: 0,
+      completed: 0,
+      dispatching: 0,
+      failed: 0,
+      processed: 0,
+      queued: 0,
+      remaining: 0,
+      skipped: 0,
+    };
   }
 
-  const town = await fetchConvexTown({
+  const source = args.source ?? "manual";
+  const dispatchStartedAt = Date.now();
+  let claimed = 0;
+  let completed = 0;
+  let failed = 0;
+  let processed = 0;
+  let skipped = 0;
+  let queued = 0;
+  let dispatching = 0;
+  const maxDispatches = readHostedPlannerDrainPerDispatch();
+
+  for (let index = 0; index < maxDispatches; index += 1) {
+    const town = await fetchConvexTown({
+      bypassAccessCheck: args.bypassAccessCheck,
+      callerLogin: args.callerLogin,
+      townId: args.townId,
+    });
+
+    if (!town) {
+      break;
+    }
+
+    const claimToken = randomUUID();
+    const claimedEntry = claimHostedPlannerQueueEntry(town, {
+      dispatchToken: claimToken,
+      now: Date.now(),
+      source,
+    });
+
+    if (!claimedEntry) {
+      queued = town.metadata.planner?.metrics.queuedCount ?? 0;
+      dispatching = town.metadata.planner?.metrics.dispatchingCount ?? 0;
+      break;
+    }
+
+    claimed += 1;
+    await saveConvexTown({
+      bypassAccessCheck: args.bypassAccessCheck,
+      callerLogin: args.callerLogin,
+      town,
+    });
+
+    try {
+      const result = await requestNpcPlan(claimedEntry.request);
+      const latestTown = await fetchConvexTown({
+        bypassAccessCheck: args.bypassAccessCheck,
+        callerLogin: args.callerLogin,
+        townId: args.townId,
+      });
+
+      if (!latestTown) {
+        skipped += 1;
+        break;
+      }
+
+      const settlement = completeHostedPlannerQueueEntry(latestTown, {
+        completedAt: Date.now(),
+        queueId: claimedEntry.id,
+        result,
+        token: claimToken,
+      });
+
+      queued = settlement.queued;
+      dispatching = settlement.dispatching;
+
+      if (settlement.outcome === "stale") {
+        skipped += 1;
+        continue;
+      }
+
+      processed += 1;
+      completed += 1;
+      await saveConvexTown({
+        bypassAccessCheck: args.bypassAccessCheck,
+        callerLogin: args.callerLogin,
+        town: latestTown,
+      });
+    } catch (error) {
+      const latestTown = await fetchConvexTown({
+        bypassAccessCheck: args.bypassAccessCheck,
+        callerLogin: args.callerLogin,
+        townId: args.townId,
+      });
+
+      if (!latestTown) {
+        skipped += 1;
+        break;
+      }
+
+      const settlement = failHostedPlannerQueueEntry(latestTown, {
+        completedAt: Date.now(),
+        error,
+        queueId: claimedEntry.id,
+        token: claimToken,
+      });
+
+      queued = settlement.queued;
+      dispatching = settlement.dispatching;
+
+      if (settlement.outcome === "stale") {
+        skipped += 1;
+        continue;
+      }
+
+      processed += 1;
+      failed += 1;
+      await saveConvexTown({
+        bypassAccessCheck: args.bypassAccessCheck,
+        callerLogin: args.callerLogin,
+        town: latestTown,
+      });
+    }
+  }
+
+  const finalTown = await fetchConvexTown({
+    bypassAccessCheck: args.bypassAccessCheck,
     callerLogin: args.callerLogin,
     townId: args.townId,
   });
 
-  if (!town) {
-    return { processed: 0, remaining: 0 };
-  }
-
-  const dispatchResult = await drainHostedPlannerQueue(town);
-  if (dispatchResult.processed > 0) {
+  if (finalTown) {
+    const counts = recordHostedPlannerDispatchMetrics(finalTown, {
+      completedAt: Date.now(),
+      processed,
+      result: processed === 0 ? "noop" : failed > 0 ? (completed > 0 ? "partial" : "failed") : "success",
+      source,
+      startedAt: dispatchStartedAt,
+    });
+    queued = counts.queued;
+    dispatching = counts.dispatching;
     await saveConvexTown({
+      bypassAccessCheck: args.bypassAccessCheck,
       callerLogin: args.callerLogin,
-      town,
+      town: finalTown,
     });
   }
-  return dispatchResult;
+
+  return {
+    claimed,
+    completed,
+    dispatching,
+    failed,
+    processed,
+    queued,
+    remaining: queued + dispatching,
+    skipped,
+  };
 }

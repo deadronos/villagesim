@@ -5,6 +5,7 @@ import { assertCanReadTown } from "../../lib/townAccess";
 import { readTownFromConvex } from "../townStateStore";
 
 export interface GetTownArgs {
+  bypassAccessCheck?: boolean;
   callerLogin?: string | null;
   townId: string;
   seed?: string;
@@ -12,6 +13,7 @@ export interface GetTownArgs {
 
 export const getTown = internalQuery({
   args: {
+    bypassAccessCheck: v.optional(v.boolean()),
     callerLogin: v.optional(v.union(v.string(), v.null())),
     townId: v.string(),
     seed: v.optional(v.string()),
@@ -23,7 +25,9 @@ export const getTown = internalQuery({
       return null;
     }
 
-    assertCanReadTown(town, args.callerLogin);
+    if (!args.bypassAccessCheck) {
+      assertCanReadTown(town, args.callerLogin);
+    }
     return town;
   },
 });

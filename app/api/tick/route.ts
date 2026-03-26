@@ -8,6 +8,7 @@ import {
   resetLocalMockTown,
   resetLocalMockTownFromExisting,
 } from "../../../lib/mockData";
+import { createInternalApiHeaders, readInternalApiToken } from "../../../lib/internalApi";
 import { getSessionFromCookieHeader } from "../../../lib/session";
 import { dispatchHostedPlannerQueue, isHostedConvexModeEnabled, runAuthoritativeTick } from "../../../lib/authoritativeTownStore";
 import { hasQueuedPlannerRequests } from "../../../lib/plannerExecution";
@@ -49,6 +50,37 @@ function jsonResponse(body: unknown, status = 200) {
 
 function getSessionOrNull(request: Request) {
   return getSessionFromCookieHeader(request.headers.get("cookie") ?? "");
+}
+
+async function triggerHostedPlannerDispatch(request: Request, args: { callerLogin?: string | null; townId: string }) {
+  const internalToken = readInternalApiToken();
+
+  if (!internalToken) {
+    return dispatchHostedPlannerQueue({
+      callerLogin: args.callerLogin,
+      source: "after-response",
+      townId: args.townId,
+    });
+  }
+
+  const response = await fetch(new URL("/api/internal/planner-dispatch", request.url), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...createInternalApiHeaders(internalToken),
+    },
+    body: JSON.stringify({
+      source: "after-response",
+      townId: args.townId,
+    }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Internal planner dispatch request failed with ${response.status}.`);
+  }
+
+  return response.json();
 }
 
 function readQuerySource(request: Request) {
@@ -104,12 +136,18 @@ async function handleTick(request: Request, source: Record<string, unknown>) {
       if (hasQueuedPlannerRequests(result.town)) {
         after(async () => {
           try {
-            await dispatchHostedPlannerQueue({
-              callerLogin,
-              townId,
-            });
+            await triggerHostedPlannerDispatch(request, { callerLogin, townId });
           } catch (error) {
-            console.error("Hosted planner queue dispatch failed", error);
+            console.error("Hosted planner queue dispatch trigger failed; retrying direct dispatch.", error);
+            try {
+              await dispatchHostedPlannerQueue({
+                callerLogin,
+                source: "after-response",
+                townId,
+              });
+            } catch (dispatchError) {
+              console.error("Hosted planner queue dispatch failed", dispatchError);
+            }
           }
         });
       }
