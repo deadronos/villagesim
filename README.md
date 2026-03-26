@@ -75,7 +75,7 @@ The provided `.env.example` includes placeholders for:
 - `APPROVED_GITHUB_LOGINS` for the private-alpha hosted access allowlist
 - Convex deployment values for authoritative state and worker access
 - `VILLAGESIM_STATE_MODE=mock|convex` to choose between local seeded storage and hosted Convex authority
-- Planner service settings with `VILLAGESIM_PLANNER_MOCK=true` enabled by default for the current starter path
+- Planner service settings with `VILLAGESIM_PLANNER_MOCK=true` enabled by default for the current starter path plus an optional `mock|copilot` service-side runtime switch
 - Session secret for local development
 
 Hosted GitHub sign-in stays private-alpha by default. Add a comma-separated list of approved GitHub logins to `APPROVED_GITHUB_LOGINS` before testing OAuth locally. Unapproved users are redirected back to `/` with an explicit denial message, and the local `demo-town` flow continues to work without OAuth.
@@ -89,7 +89,7 @@ The shared planner seam now uses `VILLAGESIM_PLANNER_SERVICE_*` names for the pr
 - `lib/npc_decision.ts` handles fast weighted decisions with injectable RNG.
 - `lib/plannerContract.ts` defines the shared zod-validated planner request/response contract used by the app-side planner seam.
 - `lib/model_proxy.ts` provides the deterministic mock planner plus the private planner-service transport that preserves mock fallback semantics.
-- `services/planner/` provides the first Docker-friendly private planner service with signed `/plan` requests, replay protection, rate limiting, and a mock provider for service-side validation.
+- `services/planner/` provides the Docker-friendly private planner service with signed `/plan` requests, replay protection, rate limiting, and a provider seam that can run either the mock planner or a local Copilot-backed runtime.
 - `lib/sim_engine.ts` applies actions, assigns plans, and advances ticks.
 - `app/api/tick/route.ts` advances either the local mock town or the hosted Convex town and returns structured JSON for the UI.
 - `workers/tick.ts` and `workers/worker_helpers.ts` exercise the same simulation logic outside the request path.
@@ -98,4 +98,4 @@ The shared planner seam now uses `VILLAGESIM_PLANNER_SERVICE_*` names for the pr
 
 - Replace the mock in-memory town store with real Convex reads and mutations.
 - Move GitHub-auth town ownership from the in-memory mock bridge into Convex-backed persistence.
-- Add the first real hosted planner adapter behind the private planner service while preserving the shared validated contract.
+- Harden planner-service observability and retries for the hosted background queue path.
