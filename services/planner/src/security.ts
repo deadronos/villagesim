@@ -1,13 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
 
-import * as plannerContract from "../../../lib/plannerContract";
-import type { PlannerServiceRequest } from "../../../lib/plannerContract";
-import * as plannerSigning from "../../../lib/plannerSigning";
+import { plannerServiceRequestSchema, type PlannerServiceRequest } from "../../../lib/plannerContract";
+import { computePlannerSignature } from "../../../lib/plannerSigning";
 
-const plannerContractModule = ("default" in plannerContract ? plannerContract.default : plannerContract) as typeof import("../../../lib/plannerContract");
-const { plannerServiceRequestSchema } = plannerContractModule;
-const plannerSigningModule = ("default" in plannerSigning ? plannerSigning.default : plannerSigning) as typeof import("../../../lib/plannerSigning");
-const { computePlannerSignature } = plannerSigningModule;
+export { computePlannerSignature } from "../../../lib/plannerSigning";
 
 export interface PlannerSecurityConfig {
   bearerToken: string;
