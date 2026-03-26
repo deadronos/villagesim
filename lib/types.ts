@@ -20,6 +20,8 @@ export type ActionStatus = "pending" | "active" | "done" | "blocked";
 export type NpcActionType = "move" | "work" | "eat" | "rest" | "speak" | "trade" | "wait" | "gather";
 export type PlannerSource = "mock" | "remote" | "queued-placeholder";
 export type PlannerFallbackReason = "budget_exhausted" | "hosted_background_queue" | "remote_failure";
+export type PlannerQueueStatus = "queued" | "dispatching" | "completed" | "failed";
+export type PlannerDispatchSource = "after-response" | "internal-route" | "cron" | "manual";
 
 export interface NpcNeeds {
   hunger: number;
@@ -248,7 +250,7 @@ export interface PlannerQueueEntry {
   prompt: string;
   request: PlannerRequestSnapshot;
   placeholderPlanId: string;
-  status: "queued" | "completed" | "failed";
+  status: PlannerQueueStatus;
   assignedPlanId?: string;
   appliedPlan?: boolean;
   source?: Exclude<PlannerSource, "queued-placeholder">;
@@ -256,6 +258,10 @@ export interface PlannerQueueEntry {
   failureReason?: string | null;
   fallbackReason?: PlannerFallbackReason | null;
   completedAt?: number;
+  dispatchToken?: string;
+  dispatchStartedAt?: number;
+  dispatchAttemptCount?: number;
+  lastDispatchSource?: PlannerDispatchSource;
 }
 
 export interface TownPlannerState {
@@ -273,7 +279,20 @@ export interface TownPlannerState {
     totalFallbacks: number;
     placeholderAssignments: number;
     completedBySource: Partial<Record<Exclude<PlannerSource, "queued-placeholder">, number>>;
+    queuedCount: number;
+    dispatchingCount: number;
     lastDispatchAt?: number;
+    lastDispatchStartedAt?: number;
+    lastDispatchCompletedAt?: number;
+    lastDispatchDurationMs?: number;
+    lastDispatchSource?: PlannerDispatchSource;
+    lastDispatchResult?: "success" | "partial" | "noop" | "failed";
+    lastDispatchProcessed?: number;
+    lastDispatchRemaining?: number;
+    lastCompletionAt?: number;
+    lastCompletionLatencyMs?: number;
+    lastFailureAt?: number;
+    lastFallbackReason?: PlannerFallbackReason | null;
   };
 }
 
