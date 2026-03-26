@@ -100,4 +100,56 @@ describe("sim_engine helpers", () => {
     expect(result.town.npcs["npc-toma"]!.currentAction?.type).toBe("move");
     expect(result.events.some((event) => event.kind === "action_completed")).toBe(true);
   });
+
+  it("covers additional action progress branches for eat, rest, speak, work, and move", async () => {
+    const town = createMockTown({ id: "action-branches-town" });
+
+    for (const npc of Object.values(town.npcs)) {
+      npc.currentAction = { remainingTicks: 3, type: "wait" };
+    }
+
+    town.npcs["npc-mira"]!.currentAction = {
+      amount: 1,
+      targetId: "bakery-main",
+      type: "eat",
+    };
+    town.npcs["npc-juno"]!.currentAction = {
+      remainingTicks: 1,
+      targetId: "home-west",
+      type: "rest",
+    };
+    town.npcs["npc-toma"]!.currentAction = {
+      targetId: "npc-mira",
+      text: "Morning!",
+      type: "speak",
+    };
+    town.npcs["npc-ivy"]!.currentAction = {
+      remainingTicks: 1,
+      targetId: "workshop-yard",
+      task: "repair fence",
+      type: "work",
+    };
+    town.npcs["npc-soren"]!.currentAction = {
+      remainingTicks: 2,
+      speed: 1,
+      target: { x: 20, y: 20 },
+      type: "move",
+    };
+
+    const beforeFood = town.npcs["npc-mira"]!.inventory.food;
+    const beforeEnergy = town.npcs["npc-juno"]!.status.energy;
+    const beforeSocial = town.npcs["npc-toma"]!.status.social;
+    const beforeWood = town.npcs["npc-ivy"]!.inventory.wood;
+    const beforePosition = { ...town.npcs["npc-soren"]!.position };
+
+    const result = await runSimulationTick(town, { now: town.now + 60_000, rng: () => 0.5 });
+
+    expect(result.summary.actionsCompleted).toBeGreaterThanOrEqual(4);
+    expect(result.town.npcs["npc-mira"]!.inventory.food).toBeLessThanOrEqual(beforeFood);
+    expect(result.town.npcs["npc-juno"]!.status.energy).toBeLessThan(beforeEnergy);
+    expect(result.town.npcs["npc-toma"]!.status.social).toBeLessThan(beforeSocial);
+    expect(result.town.npcs["npc-ivy"]!.inventory.wood).toBeLessThanOrEqual(beforeWood);
+    expect(result.town.npcs["npc-soren"]!.position).not.toEqual(beforePosition);
+    expect(result.town.npcs["npc-soren"]!.currentAction?.type).toBe("move");
+  });
 });

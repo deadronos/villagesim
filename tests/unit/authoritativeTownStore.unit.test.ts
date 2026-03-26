@@ -153,6 +153,50 @@ describe("authoritativeTownStore", () => {
     expect(fetchMutation).toHaveBeenCalled();
   });
 
+  it("creates the shared demo town in hosted mode and returns null for unknown towns", async () => {
+    process.env.VILLAGESIM_STATE_MODE = "convex";
+    const demoTown = createMockTown({ id: "demo-town" });
+
+    fetchQuery.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+    fetchMutation.mockResolvedValueOnce(demoTown);
+
+    await expect(
+      ensureAuthoritativeTown({
+        callerLogin: "deadronos",
+        townId: "demo-town",
+      }),
+    ).resolves.toBe(demoTown);
+
+    await expect(
+      ensureAuthoritativeTown({
+        callerLogin: "deadronos",
+        townId: "missing-town",
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it("throws when hosted mode is selected without valid Convex configuration", async () => {
+    process.env.VILLAGESIM_STATE_MODE = "convex";
+    delete process.env.CONVEX_URL;
+
+    await expect(
+      ensureAuthoritativeTown({
+        callerLogin: "deadronos",
+        townId: "demo-town",
+      }),
+    ).rejects.toThrow("CONVEX_URL");
+
+    process.env.CONVEX_URL = "https://demo.convex.cloud";
+    delete process.env.CONVEX_ADMIN_KEY;
+
+    await expect(
+      ensureAuthoritativeTown({
+        callerLogin: "deadronos",
+        townId: "demo-town",
+      }),
+    ).rejects.toThrow("CONVEX_ADMIN_KEY");
+  });
+
   it("runs hosted ticks through the shared simulation and queue finalizer", async () => {
     process.env.VILLAGESIM_STATE_MODE = "convex";
     const town = createMockTown({ id: "demo-town" });
@@ -192,6 +236,63 @@ describe("authoritativeTownStore", () => {
     expect(runSimulationTick).toHaveBeenCalled();
     expect(finalizeTown).toHaveBeenCalledWith(tickResult.town, tickResult.summary.planner);
     expect(result.mode).toBe("convex-hosted");
+  });
+
+  it("handles hosted tick resets and rejects missing/zero-tick executions", async () => {
+    process.env.VILLAGESIM_STATE_MODE = "convex";
+    const town = createMockTown({ id: "demo-town" });
+    const resetTown = { ...town, seed: "reset-seed" };
+    const tickResult: SimulationTickResult = {
+      events: town.events,
+      mode: "mock-local",
+      npcResults: [],
+      summary: {
+        actionsCompleted: 0,
+        actionsStarted: 0,
+        decisions: 0,
+        planner: { fallbackCount: 0, remoteCount: 0, sourceCounts: {}, queuedCount: 0 },
+      },
+      tick: 1,
+      town: { ...resetTown, tick: 1 },
+    };
+    const finalizeTown = vi.fn();
+
+    fetchQuery.mockResolvedValueOnce(town);
+    fetchMutation.mockResolvedValueOnce(resetTown).mockResolvedValueOnce(tickResult.town);
+    createHostedPlannerQueueForTick.mockReturnValue({
+      finalizeTown,
+      planner: vi.fn(),
+    });
+    runSimulationTick.mockResolvedValue(tickResult);
+
+    const result = await runAuthoritativeTick({
+      callerLogin: "deadronos",
+      count: 1,
+      reset: true,
+      seed: "reset-seed",
+      townId: town.id,
+    });
+
+    expect(result.town.seed).toBe("reset-seed");
+    expect(fetchMutation).toHaveBeenCalledTimes(2);
+
+    fetchQuery.mockResolvedValueOnce(null);
+    await expect(
+      runAuthoritativeTick({
+        callerLogin: "deadronos",
+        count: 1,
+        townId: "missing-town",
+      }),
+    ).rejects.toThrow("Town missing-town was not found");
+
+    fetchQuery.mockResolvedValueOnce(town);
+    await expect(
+      runAuthoritativeTick({
+        callerLogin: "deadronos",
+        count: 0,
+        townId: town.id,
+      }),
+    ).rejects.toThrow("No simulation tick was executed");
   });
 
   it("dispatches hosted planner work and records successful settlements", async () => {
@@ -313,6 +414,49 @@ describe("authoritativeTownStore", () => {
       completed: 0,
       failed: 1,
       processed: 1,
+    });
+  });
+
+  it("returns zeros when hosted dispatching is disabled and handles empty or missing queue states", async () => {
+    await expect(dispatchHostedPlannerQueue({ townId: "demo-town" })).resolves.toEqual({
+      claimed: 0,
+      completed: 0,
+      dispatching: 0,
+      failed: 0,
+      processed: 0,
+      queued: 0,
+      remaining: 0,
+      skipped: 0,
+    });
+
+    process.env.VILLAGESIM_STATE_MODE = "convex";
+    const town = createMockTown({ id: "demo-town" });
+
+    readHostedPlannerDrainPerDispatch.mockReturnValue(1);
+    fetchQuery.mockResolvedValueOnce(town).mockResolvedValueOnce(town);
+    claimHostedPlannerQueueEntry.mockReturnValue(null);
+    recordHostedPlannerDispatchMetrics.mockReturnValue({
+      dispatching: 0,
+      queued: 0,
+      remaining: 0,
+    });
+    fetchMutation.mockResolvedValue(town);
+
+    const empty = await dispatchHostedPlannerQueue({ townId: town.id });
+    expect(empty).toMatchObject({
+      claimed: 0,
+      processed: 0,
+      queued: 0,
+      skipped: 0,
+    });
+
+    fetchQuery.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+    const missing = await dispatchHostedPlannerQueue({ townId: town.id });
+    expect(missing).toMatchObject({
+      claimed: 0,
+      processed: 0,
+      queued: 0,
+      skipped: 0,
     });
   });
 });
