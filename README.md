@@ -2,6 +2,13 @@
 
 VillageSim is a local-first starter for a 2D village simulation MVP. It includes a runnable Next.js UI, Convex-backed hosted authority for towns when enabled, mock local development state by default, NPC decision logic, a mock planner, a tick API, and a lightweight worker entrypoint so you can iterate before wiring full hosted planner infrastructure.
 
+Current setup and rollout instructions live in [SETUP_GUIDE.md](./SETUP_GUIDE.md). Use that guide for:
+
+- local mock mode
+- local planner-service mode
+- Vercel + Convex + Tailscale Funnel private-alpha setup
+- environment variable placement and rollout validation
+
 ## What is in this starter?
 
 - Next.js App Router app scaffold with TypeScript enabled.
@@ -14,6 +21,8 @@ VillageSim is a local-first starter for a 2D village simulation MVP. It includes
 
 ## Local startup
 
+For the full environment reference and hosted setup instructions, see [SETUP_GUIDE.md](./SETUP_GUIDE.md).
+
 1. Copy the example environment file:
 
    ```bash
@@ -25,6 +34,12 @@ VillageSim is a local-first starter for a 2D village simulation MVP. It includes
 
    ```bash
    npm install
+   ```
+
+   If you want to run the planner service locally, also install its separate dependency set:
+
+   ```bash
+   npm --prefix services/planner install
    ```
 
 4. Start the app:
@@ -69,18 +84,11 @@ Component tests use the `@vitest-environment jsdom` docblock and share a common 
 
 ## Environment notes
 
-The provided `.env.example` includes placeholders for:
+The provided `.env.example` covers the current app-side and planner-service env surface. The full reference, placement rules, failure modes, and rollout checklist now live in [SETUP_GUIDE.md](./SETUP_GUIDE.md).
 
-- GitHub OAuth client credentials
-- `APPROVED_GITHUB_LOGINS` for the private-alpha hosted access allowlist
-- Convex deployment values for authoritative state and worker access
-- `VILLAGESIM_STATE_MODE=mock|convex` to choose between local seeded storage and hosted Convex authority
-- Planner service settings with `VILLAGESIM_PLANNER_MOCK=true` enabled by default for the current starter path plus an optional `mock|copilot` service-side runtime switch
-- Session secret for local development
+Hosted GitHub sign-in stays private-alpha by default. Add approved GitHub logins to `APPROVED_GITHUB_LOGINS` before testing OAuth locally or on Vercel. Unapproved users are redirected back to `/` with an explicit denial message, and the local `demo-town` flow continues to work without OAuth.
 
-Hosted GitHub sign-in stays private-alpha by default. Add a comma-separated list of approved GitHub logins to `APPROVED_GITHUB_LOGINS` before testing OAuth locally. Unapproved users are redirected back to `/` with an explicit denial message, and the local `demo-town` flow continues to work without OAuth.
-
-The shared planner seam now uses `VILLAGESIM_PLANNER_SERVICE_*` names for the private service path while keeping `VILLAGESIM_PLANNER_MOCK=true` as the default local-first behavior. Legacy `MODEL_*` aliases are still accepted for compatibility during the transition. When the service path is enabled, the app sends signed server-side planner requests with a strict timeout, retries only bounded transient failures, and falls back to the deterministic mock planner if the private service is unavailable.
+The shared planner seam now uses `VILLAGESIM_PLANNER_SERVICE_*` names for the private service path while keeping `VILLAGESIM_PLANNER_MOCK=true` as the default local-first behavior. Legacy `MODEL_*` aliases are still accepted for compatibility during the transition.
 
 ## Local-first architecture
 

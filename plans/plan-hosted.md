@@ -1,5 +1,7 @@
 # Hosted plan: GitHub-auth VillageSim with a private planner service, Convex, and Next.js App Router
 
+For the current implemented setup, secrets, and rollout checklist, see [`SETUP_GUIDE.md`](../SETUP_GUIDE.md). This file remains the forward-looking architecture plan.
+
 ## Summary
 
 This plan moves VillageSim from the current local-first starter to a hosted architecture with:
