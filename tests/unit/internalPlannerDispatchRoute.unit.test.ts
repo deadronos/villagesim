@@ -79,4 +79,95 @@ describe("POST /api/internal/planner-dispatch", () => {
       townId: "demo-town",
     });
   });
+
+  it("short-circuits in mock-local mode", async () => {
+    isHostedConvexModeEnabled.mockReturnValue(false);
+
+    const { POST } = await loadRouteModule();
+    const response = await POST(
+      new Request("http://localhost:3000/api/internal/planner-dispatch", {
+        body: JSON.stringify({ townId: "demo-town" }),
+        headers: {
+          Authorization: "Bearer internal-token",
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      }),
+    );
+
+    await expect(response.json()).resolves.toMatchObject({
+      mode: "mock-local",
+      ok: true,
+      processed: 0,
+      remaining: 0,
+    });
+    expect(dispatchHostedPlannerQueue).not.toHaveBeenCalled();
+  });
+
+  it("validates required town ids and defaults invalid sources", async () => {
+    const { POST } = await loadRouteModule();
+
+    const missingTown = await POST(
+      new Request("http://localhost:3000/api/internal/planner-dispatch", {
+        body: JSON.stringify({ source: "cron" }),
+        headers: {
+          Authorization: "Bearer internal-token",
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      }),
+    );
+
+    expect(missingTown.status).toBe(400);
+    await expect(missingTown.json()).resolves.toMatchObject({
+      error: "Planner dispatch requires a townId.",
+      ok: false,
+    });
+
+    const invalidSource = await POST(
+      new Request("http://localhost:3000/api/internal/planner-dispatch", {
+        body: JSON.stringify({ source: "bogus", townId: "demo-town" }),
+        headers: {
+          Authorization: "Bearer internal-token",
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      }),
+    );
+
+    await expect(invalidSource.json()).resolves.toMatchObject({
+      mode: "convex-hosted",
+      ok: true,
+      source: "internal-route",
+      townId: "demo-town",
+    });
+    expect(dispatchHostedPlannerQueue).toHaveBeenLastCalledWith({
+      bypassAccessCheck: true,
+      source: "internal-route",
+      townId: "demo-town",
+    });
+  });
+
+  it("surfaces dispatcher failures as 500 responses", async () => {
+    dispatchHostedPlannerQueue.mockRejectedValueOnce(new Error("dispatch exploded"));
+
+    const { POST } = await loadRouteModule();
+    const response = await POST(
+      new Request("http://localhost:3000/api/internal/planner-dispatch", {
+        body: JSON.stringify({ townId: "demo-town" }),
+        headers: {
+          Authorization: "Bearer internal-token",
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "dispatch exploded",
+      ok: false,
+      townId: "demo-town",
+    });
+  });
 });

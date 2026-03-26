@@ -113,4 +113,56 @@ describe("GET /api/auth/callback", () => {
     expect(encodeSession).toHaveBeenCalledTimes(1);
     expect(response.headers.get("location")).toBe("http://localhost:3000/town/deadronos-town");
   });
+
+  it("redirects when OAuth is unconfigured or the state check fails", async () => {
+    delete process.env.GITHUB_CLIENT_ID;
+
+    let route = await loadRouteModule();
+    let response = await route.GET(new Request("http://localhost:3000/api/auth/callback"));
+    expect(response.headers.get("location")).toBe("http://localhost:3000/?auth_error=unconfigured");
+
+    process.env.GITHUB_CLIENT_ID = "test-client-id";
+    route = await loadRouteModule();
+    response = await route.GET(
+      new Request("http://localhost:3000/api/auth/callback?code=test-code&state=wrong-state", {
+        headers: {
+          cookie: "__vs_oauth_state=expected-state",
+        },
+      }),
+    );
+
+    expect(response.headers.get("location")).toBe("http://localhost:3000/?auth_error=state_mismatch");
+  });
+
+  it("redirects when GitHub does not return an access token", async () => {
+    exchangeCodeForToken.mockResolvedValue({});
+
+    const { GET } = await loadRouteModule();
+    const response = await GET(
+      new Request("http://localhost:3000/api/auth/callback?code=test-code&state=expected-state", {
+        headers: {
+          cookie: "__vs_oauth_state=expected-state",
+        },
+      }),
+    );
+
+    expect(response.headers.get("location")).toBe("http://localhost:3000/?auth_error=token_exchange");
+  });
+
+  it("redirects to callback_failed when the OAuth flow throws", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    exchangeCodeForToken.mockRejectedValue(new Error("boom"));
+
+    const { GET } = await loadRouteModule();
+    const response = await GET(
+      new Request("https://villagesim.test/api/auth/callback?code=test-code&state=expected-state", {
+        headers: {
+          cookie: "__vs_oauth_state=expected-state",
+        },
+      }),
+    );
+
+    expect(response.headers.get("location")).toBe("http://localhost:3000/?auth_error=callback_failed");
+    expect(consoleError).toHaveBeenCalled();
+  });
 });

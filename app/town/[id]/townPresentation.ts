@@ -144,27 +144,29 @@ function buildMapFromTown(town: TownState): TileType[][] {
   for (const location of town.locations) {
     const x = Math.max(0, Math.min(map[0]!.length - 1, Math.round(location.position.x)));
     const y = Math.max(0, Math.min(map.length - 1, Math.round(location.position.y)));
+    let tile: TileType;
 
     switch (location.kind) {
       case "field":
-        map[y]![x] = "field";
+        tile = "field";
         break;
       case "market":
       case "plaza":
       case "tavern":
-        map[y]![x] = "plaza";
+        tile = "plaza";
         break;
       case "home":
       case "bakery":
       case "workshop":
-        map[y]![x] = "home";
+        tile = "home";
         break;
       default:
-        map[y]![x] = "grass";
+        tile = "grass";
         break;
     }
 
     paintPath(map, plaza, { x, y });
+    map[y]![x] = tile;
   }
 
   return map;
