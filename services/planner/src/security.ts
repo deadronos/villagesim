@@ -1,11 +1,13 @@
 import { timingSafeEqual } from "node:crypto";
 
 import * as plannerContract from "../../../lib/plannerContract";
-import { computePlannerSignature } from "../../../lib/plannerSigning";
 import type { PlannerServiceRequest } from "../../../lib/plannerContract";
+import * as plannerSigning from "../../../lib/plannerSigning";
 
 const plannerContractModule = ("default" in plannerContract ? plannerContract.default : plannerContract) as typeof import("../../../lib/plannerContract");
 const { plannerServiceRequestSchema } = plannerContractModule;
+const plannerSigningModule = ("default" in plannerSigning ? plannerSigning.default : plannerSigning) as typeof import("../../../lib/plannerSigning");
+const { computePlannerSignature } = plannerSigningModule;
 
 export interface PlannerSecurityConfig {
   bearerToken: string;
@@ -57,8 +59,6 @@ function headerValue(headers: Headers, name: string): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
 }
-
-export { computePlannerSignature } from "../../../lib/plannerSigning";
 
 function assertValidBearerToken(authorizationHeader: string | null, expectedToken: string): void {
   if (!authorizationHeader?.startsWith("Bearer ")) {
