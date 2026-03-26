@@ -9,7 +9,7 @@ export * from "./base.js";
 export * from "./copilot.js";
 export * from "./mock.js";
 
-const DEFAULT_COPILOT_MODEL = "gpt-5";
+const DEFAULT_COPILOT_MODEL = "gpt-5-mini";
 const DEFAULT_COPILOT_TIMEOUT_MS = 45_000;
 const DEFAULT_REPOSITORY_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const DEFAULT_LOCAL_COPILOT_PATH = fileURLToPath(
