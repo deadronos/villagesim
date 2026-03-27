@@ -359,7 +359,8 @@ export async function runSimulationTick(
   town.now = options.now ?? town.now + 60_000;
   const rng = options.rng ?? createSeededRng(`${town.seed}:${town.tick}`);
   const planner = options.planner ?? requestNpcPlan;
-  const npcResults = listTownNpcs(town).map(makeNpcResult);
+  const npcs = listTownNpcs(town);
+  const npcResults = npcs.map(makeNpcResult);
   const resultIndex = new Map(npcResults.map((npcResult) => [npcResult.npcId, npcResult]));
   let actionsStarted = 0;
   let actionsCompleted = 0;
@@ -373,7 +374,7 @@ export async function runSimulationTick(
     message: `Simulation tick ${town.tick} executed.`,
   });
 
-  for (const npc of listTownNpcs(town)) {
+  for (const npc of npcs) {
     const npcResult = resultIndex.get(npc.id)!;
     applyPassiveDrift(npc);
     const completedAction = progressAction(town, npc);
