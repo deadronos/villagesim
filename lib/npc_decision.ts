@@ -1,3 +1,4 @@
+import { distanceBetween } from "./mockData";
 import type {
   DecisionCandidate,
   DecisionCandidateType,
@@ -142,7 +143,7 @@ function scoreCandidate(
   score *= candidateNeedFactor(candidate, npc, weights);
 
   if (candidate.target) {
-    const distance = Math.max(1, env.distances[candidate.target.id] ?? Math.hypot(candidate.target.position.x - npc.position.x, candidate.target.position.y - npc.position.y));
+    const distance = Math.max(1, env.distances[candidate.target.id] ?? distanceBetween(candidate.target.position, npc.position));
     score *= Math.pow(weights.proximityDecay, distance / 3);
   }
 
@@ -177,7 +178,7 @@ function decisionToPlanIntent(type: DecisionCandidateType): PlanIntent {
 
 function createImmediateAction(npc: NpcState, selected: DecisionCandidate): NpcAction {
   const target = selected.target;
-  const distance = target ? Math.hypot(target.position.x - npc.position.x, target.position.y - npc.position.y) : 0;
+  const distance = target ? distanceBetween(target.position, npc.position) : 0;
 
   switch (selected.type) {
     case "work":

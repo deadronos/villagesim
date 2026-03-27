@@ -1,6 +1,7 @@
 import {
   cloneTownState,
   createSeededRng,
+  distanceBetween,
   ensureLocalMockTownState,
   getEnvironmentForNpc,
   getLocalMockTownState,
@@ -77,7 +78,7 @@ function normalizeAction(town: TownState, action: NpcAction): NpcAction {
 function moveTowards(current: NpcState["position"], target: NpcState["position"], speed: number): { next: NpcState["position"]; arrived: boolean } {
   const dx = target.x - current.x;
   const dy = target.y - current.y;
-  const distance = Math.hypot(dx, dy);
+  const distance = distanceBetween(current, target);
   if (distance <= speed) {
     return { next: { ...target }, arrived: true };
   }

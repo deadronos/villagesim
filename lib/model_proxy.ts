@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { distanceBetween } from "./mockData";
 import { buildPlannerPrompt } from "./prompt_templates";
 import type {
   NpcPlan,
@@ -46,13 +47,6 @@ export interface PlannerPayload {
 
 function nextPlanId(input: PlannerRequest): string {
   return `${input.npc.id}:${input.intent}:${input.now}`;
-}
-
-function distanceTo(target: Position | undefined, current: Position): number {
-  if (!target) {
-    return Infinity;
-  }
-  return Math.hypot(target.x - current.x, target.y - current.y);
 }
 
 function withIds(planId: string, payload: PlannerPayload, now: number, intent: PlannerRequest["intent"]): NpcPlan {
@@ -106,7 +100,7 @@ function buildMockPayload(input: PlannerRequest, rng: RandomSource): PlannerPayl
     case "work": {
       const workplace = input.npc.workplaceId === workshop?.id ? workshop : input.npc.workplaceId === market?.id ? market : field ?? workshop ?? market;
       const steps: PlannerPayload["plan"] = [];
-      if (workplace && distanceTo(workplace.position, input.npc.position) > 1.5) {
+      if (workplace && distanceBetween(workplace.position, input.npc.position) > 1.5) {
         steps.push({ type: "move", target: workplace.position, note: `Head toward ${workplace.label}.` });
       }
       if (input.npc.role === "builder") {
@@ -118,7 +112,7 @@ function buildMockPayload(input: PlannerRequest, rng: RandomSource): PlannerPayl
     }
     case "trade": {
       const steps: PlannerPayload["plan"] = [];
-      if (market && distanceTo(market.position, input.npc.position) > 1.5) {
+      if (market && distanceBetween(market.position, input.npc.position) > 1.5) {
         steps.push({ type: "move", target: market.position, note: "Walk to the market." });
       }
       steps.push({ type: "trade", item: input.npc.status.hunger > 60 ? "food" : "grain", amount: 1, targetId: market?.id, note: "Make a small safe trade." });
@@ -130,7 +124,7 @@ function buildMockPayload(input: PlannerRequest, rng: RandomSource): PlannerPayl
     case "social": {
       const targetPosition = nearestPerson?.position ?? plaza?.position ?? home?.position ?? input.npc.position;
       const steps: PlannerPayload["plan"] = [];
-      if (distanceTo(targetPosition, input.npc.position) > 1.5) {
+      if (distanceBetween(targetPosition, input.npc.position) > 1.5) {
         steps.push({ type: "move", target: targetPosition, note: "Move toward someone to talk to." });
       }
       steps.push({ type: "speak", text: upbeatGreeting, targetId: nearestPerson?.id, note: "Check in with a neighbour." });
@@ -142,7 +136,7 @@ function buildMockPayload(input: PlannerRequest, rng: RandomSource): PlannerPayl
       return {
         rationale: `${input.npc.name} should fetch supplies before the next task.`,
         plan: [
-          ...(target && distanceTo(target.position, input.npc.position) > 1.5 ? [{ type: "move" as const, target: target.position, note: `Head toward ${target.label}.` }] : []),
+          ...(target && distanceBetween(target.position, input.npc.position) > 1.5 ? [{ type: "move" as const, target: target.position, note: `Head toward ${target.label}.` }] : []),
           { type: "gather", item: target?.kind === "workshop" ? "wood" : "grain", count: 1, targetId: target?.id, note: "Collect a single useful resource." },
           { type: "wait", seconds: 1, note: "Check if more supplies are still needed." },
         ],
