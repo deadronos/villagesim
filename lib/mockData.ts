@@ -212,13 +212,20 @@ function inferTimeOfDay(tick: number): NpcEnvironment["timeOfDay"] {
   return "evening";
 }
 
-export function getEnvironmentForNpc(town: TownState, npcId: string): NpcEnvironment {
+export function getEnvironmentForNpc(
+  town: TownState,
+  npcId: string,
+  options?: {
+    townNpcs?: NpcState[];
+    averageSocialNeed?: number;
+  },
+): NpcEnvironment {
   const npc = town.npcs[npcId];
   if (!npc) {
     throw new Error(`NPC ${npcId} was not found in town ${town.id}`);
   }
 
-  const townNpcs = listTownNpcs(town);
+  const townNpcs = options?.townNpcs ?? listTownNpcs(town);
   const home = getTownLocation(town, npc.homeId);
   const field = findClosestLocation(town, npc.position, ["field"]);
   const market = findClosestLocation(town, npc.position, ["market"]);
@@ -246,7 +253,7 @@ export function getEnvironmentForNpc(town: TownState, npcId: string): NpcEnviron
     distances[person.id] = distanceBetween(person.position, npc.position);
   }
 
-  const averageSocialNeed = townNpcs.reduce((sum, citizen) => sum + citizen.status.social, 0) / Math.max(1, townNpcs.length);
+  const averageSocialNeed = options?.averageSocialNeed ?? (townNpcs.reduce((sum, citizen) => sum + citizen.status.social, 0) / Math.max(1, townNpcs.length));
 
   return {
     tick: town.tick,
