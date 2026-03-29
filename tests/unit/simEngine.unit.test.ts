@@ -152,4 +152,70 @@ describe("sim_engine helpers", () => {
     expect(result.town.npcs["npc-soren"]!.position).not.toEqual(beforePosition);
     expect(result.town.npcs["npc-soren"]!.currentAction?.type).toBe("move");
   });
+
+  describe("collectNpcsNeedingDecision", () => {
+    it("filters NPCs correctly based on plan status, current action, and decision threshold", () => {
+      const town = createMockTown({ id: "collect-decision-town" });
+      town.tick = 10;
+
+      // Base setup: Make all idle, threshold is 0.
+      for (const npc of Object.values(town.npcs)) {
+        npc.plan = null;
+        npc.currentAction = null;
+        npc.lastDecisionTick = 0;
+      }
+
+      // Scenario 1: Needs decision (Happy path). No plan, no current action, tick threshold met.
+      town.npcs["npc-mira"]!.lastDecisionTick = 5;
+
+      // Scenario 2: Active plan.
+      town.npcs["npc-juno"]!.plan = {
+        id: "active-plan",
+        intent: "work",
+        rationale: "Work",
+        status: "active",
+        currentStepIndex: 0,
+        steps: [{ id: "step-1", status: "pending", type: "wait" }],
+        createdAt: town.now,
+        updatedAt: town.now,
+      };
+
+      // Scenario 3: Completed plan. Should need decision.
+      town.npcs["npc-toma"]!.plan = {
+        id: "completed-plan",
+        intent: "rest",
+        rationale: "Rest",
+        status: "done",
+        currentStepIndex: 0,
+        steps: [{ id: "step-1", status: "done", type: "wait" }],
+        createdAt: town.now,
+        updatedAt: town.now,
+      };
+
+      // Scenario 4: Current action.
+      town.npcs["npc-ivy"]!.currentAction = {
+        type: "wait",
+        remainingTicks: 1,
+      };
+
+      // Scenario 5: Tick threshold not met.
+      // town.tick is 10. thresholdTicks = 5. Therefore, lastDecisionTick > 5 means threshold not met.
+      town.npcs["npc-soren"]!.lastDecisionTick = 8;
+
+      const npcs = collectNpcsNeedingDecision(town, 5);
+
+      const npcIds = npcs.map((n) => n.id);
+
+      expect(npcIds).toContain("npc-mira"); // Scenario 1
+      expect(npcIds).not.toContain("npc-juno"); // Scenario 2
+      expect(npcIds).toContain("npc-toma"); // Scenario 3
+      expect(npcIds).not.toContain("npc-ivy"); // Scenario 4
+      expect(npcIds).not.toContain("npc-soren"); // Scenario 5
+
+      // Scenario 6: Mixed state - Completed plan BUT with a current action
+      town.npcs["npc-toma"]!.currentAction = { type: "wait", remainingTicks: 1 };
+      const npcsMixed = collectNpcsNeedingDecision(town, 5);
+      expect(npcsMixed.map(n => n.id)).not.toContain("npc-toma");
+    });
+  });
 });
