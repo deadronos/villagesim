@@ -425,7 +425,10 @@ export async function runSimulationTick(
     message: `Simulation tick ${town.tick} executed.`,
   });
 
-  for (const npc of listTownNpcs(town)) {
+  const townNpcs = listTownNpcs(town);
+  const averageSocialNeed = townNpcs.reduce((sum, citizen) => sum + citizen.status.social, 0) / Math.max(1, townNpcs.length);
+
+  for (const npc of townNpcs) {
     const npcResult = resultIndex.get(npc.id)!;
     applyPassiveDrift(npc);
     const completedAction = progressAction(town, npc);
@@ -449,7 +452,7 @@ export async function runSimulationTick(
       continue;
     }
 
-    const env = getEnvironmentForNpc(town, npc.id);
+    const env = getEnvironmentForNpc(town, npc.id, { townNpcs, averageSocialNeed });
     const decision = weightedDecision(npc, env, { rng });
     npcResult.decision = decision;
     appendTownEvent(town, {
