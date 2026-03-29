@@ -51,6 +51,27 @@ describe("session helpers", () => {
     expect(decodeSession(tampered)).toBeNull();
   });
 
+
+  it("rejects an expired session token", () => {
+    const encoded = encodeSession({
+      user: { login: "deadronos" },
+      townId: "deadronos-town",
+      expiresAt: Date.now() - 60_000,
+    });
+
+    expect(decodeSession(encoded)).toBeNull();
+  });
+
+  it("rejects a session token with invalid expiresAt", () => {
+    const encoded = encodeSession({
+      user: { login: "deadronos" },
+      townId: "deadronos-town",
+      expiresAt: "invalid" as any,
+    });
+
+    expect(decodeSession(encoded)).toBeNull();
+  });
+
   it("parses cookies and extracts the session from a cookie header", () => {
     const encoded = encodeSession({
       user: { login: "deadronos" },
