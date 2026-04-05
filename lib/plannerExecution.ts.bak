@@ -1,4 +1,3 @@
-import { cloneJsonValue } from "./utils";
 import { buildPlannerPrompt } from "./prompt_templates";
 import { createMockPlannerResult, createQueuedPlaceholderPlannerResult, requestNpcPlan } from "./model_proxy";
 import { appendTownEvent, assignPlanToTown, createTownEventId, startNpcPlanIfIdle } from "./sim_engine";

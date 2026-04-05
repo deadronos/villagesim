@@ -1,5 +1,3 @@
-import { clampNeed, distanceBetween, cloneValue, cloneJsonValue } from "./utils";
-
 import {
   type NpcEnvironment,
   type NpcRole,
@@ -169,7 +167,6 @@ export function cloneTownState(town: TownState): TownState {
 }
 
 
-export { distanceBetween };
 export function listTownNpcs(town: TownState): NpcState[] {
   return Object.values(town.npcs).sort((left, right) => left.name.localeCompare(right.name));
 }
