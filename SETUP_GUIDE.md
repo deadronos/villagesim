@@ -97,9 +97,9 @@ Optional app-side tuning:
 
 ### Configure the planner service environment
 
-The planner service reads from exported process env, not from `.env.local` directly.
+The planner service auto-loads repo-root `.env` and `.env.local` when started from this workspace. Shell exports still win if you want to override values manually.
 
-The simplest local pattern is:
+The simplest local pattern is still:
 
 ```bash
 set -a

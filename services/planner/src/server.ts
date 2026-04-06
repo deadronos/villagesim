@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 import { ZodError } from "zod";
 
 import { PlannerProviderError, createPlannerProviderFromEnv, type PlannerProvider } from "./providers/index.js";
+import { loadPlannerServiceEnv } from "./env.js";
 import { SlidingWindowRateLimiter } from "./rateLimit.js";
 import { ReplayProtector, SecurityError, verifyPlannerRequest } from "./security.js";
 
@@ -279,5 +280,6 @@ export function startPlannerService(config: PlannerServiceConfig = readPlannerSe
 const entrypoint = process.argv[1] ? pathToFileURL(process.argv[1]).href : null;
 
 if (entrypoint && import.meta.url === entrypoint) {
+  loadPlannerServiceEnv();
   startPlannerService();
 }
