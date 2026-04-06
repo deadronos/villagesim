@@ -87,7 +87,7 @@ VILLAGESIM_PLANNER_MOCK=false
 VILLAGESIM_PLANNER_SERVICE_URL=http://localhost:4000/plan
 VILLAGESIM_PLANNER_SERVICE_TOKEN=replace-with-shared-token
 VILLAGESIM_PLANNER_SERVICE_SIGNING_SECRET=replace-with-shared-signing-secret
-VILLAGESIM_PLANNER_SERVICE_TIMEOUT_MS=3000
+VILLAGESIM_PLANNER_SERVICE_TIMEOUT_MS=60000
 ```
 
 Optional app-side tuning:
@@ -196,7 +196,7 @@ VILLAGESIM_PLANNER_MOCK=false
 VILLAGESIM_PLANNER_SERVICE_URL=https://your-funnel-domain.example/plan
 VILLAGESIM_PLANNER_SERVICE_TOKEN=shared-token-with-service
 VILLAGESIM_PLANNER_SERVICE_SIGNING_SECRET=shared-signing-secret
-VILLAGESIM_PLANNER_SERVICE_TIMEOUT_MS=3000
+VILLAGESIM_PLANNER_SERVICE_TIMEOUT_MS=60000
 
 VILLAGESIM_PLANNER_BUDGET_PER_TICK=2
 VILLAGESIM_PLANNER_DRAIN_PER_DISPATCH=4
@@ -228,7 +228,7 @@ If using the Copilot-backed runtime there, switch to:
 ```env
 VILLAGESIM_PLANNER_SERVICE_PROVIDER=copilot
 VILLAGESIM_PLANNER_COPILOT_MODEL=gpt-5-mini
-VILLAGESIM_PLANNER_COPILOT_TIMEOUT_MS=45000
+VILLAGESIM_PLANNER_COPILOT_TIMEOUT_MS=60000
 ```
 
 Then add any CLI path, config dir, or working-directory overrides that your machine needs.
@@ -275,7 +275,7 @@ If you want hosted sign-in locally or on Vercel:
 - `VILLAGESIM_PLANNER_SERVICE_URL`: app-side planner endpoint URL.
 - `VILLAGESIM_PLANNER_SERVICE_TOKEN`: shared bearer token for planner requests.
 - `VILLAGESIM_PLANNER_SERVICE_SIGNING_SECRET`: shared HMAC secret for planner request signatures.
-- `VILLAGESIM_PLANNER_SERVICE_TIMEOUT_MS`: request timeout before mock fallback.
+- `VILLAGESIM_PLANNER_SERVICE_TIMEOUT_MS`: request timeout before mock fallback. 60000ms is a good starting point for the Copilot-backed local planner service.
 - `VILLAGESIM_PLANNER_BUDGET_PER_TICK`: hosted queue budget per tick.
 - `VILLAGESIM_PLANNER_DRAIN_PER_DISPATCH`: number of queued planner items to drain per dispatch run.
 
@@ -289,7 +289,7 @@ If you want hosted sign-in locally or on Vercel:
 - `VILLAGESIM_PLANNER_SERVICE_REPLAY_WINDOW_MS`: freshness window for signed request timestamps.
 - `VILLAGESIM_PLANNER_SERVICE_PROVIDER`: `mock` or `copilot`.
 - `VILLAGESIM_PLANNER_COPILOT_MODEL`: Copilot runtime model name.
-- `VILLAGESIM_PLANNER_COPILOT_TIMEOUT_MS`: Copilot runtime timeout.
+- `VILLAGESIM_PLANNER_COPILOT_TIMEOUT_MS`: Copilot runtime timeout. 60000ms is a sensible local default.
 - `VILLAGESIM_PLANNER_COPILOT_CLI_PATH`: optional CLI binary override.
 - `VILLAGESIM_PLANNER_COPILOT_CLI_URL`: optional remote CLI server URL.
 - `VILLAGESIM_PLANNER_COPILOT_CONFIG_DIR`: optional Copilot config directory override.
