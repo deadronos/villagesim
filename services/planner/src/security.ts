@@ -1,9 +1,14 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { plannerServiceRequestSchema, type PlannerServiceRequest } from "../../../lib/plannerContract";
-import { computePlannerSignature } from "../../../lib/plannerSigning";
+import * as plannerContract from "../../../lib/plannerContract";
+import type { PlannerServiceRequest } from "../../../lib/plannerContract";
 
-export { computePlannerSignature } from "../../../lib/plannerSigning";
+const plannerContractModule = ("default" in plannerContract ? plannerContract.default : plannerContract) as typeof import("../../../lib/plannerContract");
+const { plannerServiceRequestSchema } = plannerContractModule;
+
+export function computePlannerSignature(body: string, requestId: string, requestedAt: string, signingSecret: string): string {
+  return createHmac("sha256", signingSecret).update(`${requestId}.${requestedAt}.${body}`).digest("hex");
+}
 
 export interface PlannerSecurityConfig {
   bearerToken: string;
