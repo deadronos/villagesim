@@ -23,7 +23,6 @@ import type {
   PlannerRequest,
   PlannerResult,
   PlannerSource,
-  Position,
   RandomSource,
 } from "./types";
 

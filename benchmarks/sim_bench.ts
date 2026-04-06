@@ -1,4 +1,4 @@
-import { createMockTown, listTownNpcs } from "../lib/mockData";
+import { createMockTown } from "../lib/mockData";
 import { runSimulationTick } from "../lib/sim_engine";
 import { TownState, NpcState } from "../lib/types";
 
