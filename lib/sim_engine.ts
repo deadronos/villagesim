@@ -396,7 +396,8 @@ export async function runSimulationTick(
   town.now = options.now ?? town.now + 60_000;
   const rng = options.rng ?? createSeededRng(`${town.seed}:${town.tick}`);
   const planner = options.planner ?? createFallbackPlannerResult;
-  const npcResults = listTownNpcs(town).map(makeNpcResult);
+  const townNpcs = listTownNpcs(town);
+  const npcResults = townNpcs.map(makeNpcResult);
   const resultIndex = new Map(npcResults.map((npcResult) => [npcResult.npcId, npcResult]));
   let actionsStarted = 0;
   let actionsCompleted = 0;
@@ -415,7 +416,6 @@ export async function runSimulationTick(
     message: `Simulation tick ${town.tick} executed.`,
   });
 
-  const townNpcs = listTownNpcs(town);
   const averageSocialNeed = townNpcs.reduce((sum, citizen) => sum + citizen.status.social, 0) / Math.max(1, townNpcs.length);
 
   for (const npc of townNpcs) {

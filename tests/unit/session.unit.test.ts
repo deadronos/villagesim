@@ -1,3 +1,5 @@
+import { createHmac } from "crypto";
+
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -11,6 +13,12 @@ import {
 
 describe("session helpers", () => {
   const originalSecret = process.env.SESSION_SECRET;
+
+  function signSessionPayload(encodedPayload: string): string {
+    return createHmac("sha256", process.env.SESSION_SECRET ?? "insecure-dev-fallback-secret")
+      .update(encodedPayload)
+      .digest("base64url");
+  }
 
   beforeEach(() => {
     process.env.SESSION_SECRET = "vitest-session-secret";
@@ -63,11 +71,13 @@ describe("session helpers", () => {
   });
 
   it("rejects a session token with invalid expiresAt", () => {
-    const encoded = encodeSession({
+    const payload = {
       user: { login: "deadronos" },
       townId: "deadronos-town",
-      expiresAt: "invalid" as any,
-    });
+      expiresAt: "invalid",
+    };
+    const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
+    const encoded = `${encodedPayload}.${signSessionPayload(encodedPayload)}`;
 
     expect(decodeSession(encoded)).toBeNull();
   });
