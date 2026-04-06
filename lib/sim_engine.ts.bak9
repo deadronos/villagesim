@@ -1,6 +1,16 @@
-import { clampNeed } from "./utils";
-import { cloneTownState, listTownNpcs, getEnvironmentForNpc, ensureLocalMockTownState, getLocalMockTownState, setLocalMockTownState, createSeededRng } from "./mockData";
 import { distanceBetween } from "./utils";
+import { clampNeed } from "./utils";
+import {
+  cloneTownState,
+  createSeededRng,
+
+  ensureLocalMockTownState,
+  getEnvironmentForNpc,
+  getLocalMockTownState,
+  listTownNpcs,
+  setLocalMockTownState,
+} from "./mockData";
+import { clampNeed } from "./utils";
 import { weightedDecision } from "./npc_decision";
 import type {
   NpcAction,

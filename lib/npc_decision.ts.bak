@@ -1,4 +1,4 @@
-import { distanceBetween } from "./utils";
+import { distanceBetween } from "./mockData";
 import type {
   DecisionCandidate,
   DecisionCandidateType,

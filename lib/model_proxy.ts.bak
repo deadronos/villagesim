@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { distanceBetween } from "./utils";
+import { distanceBetween } from "./mockData";
 import { buildPlannerPrompt } from "./prompt_templates";
 import { isPlannerServiceEnabled, readPlannerServiceConfig } from "./plannerConfig";
 import {
