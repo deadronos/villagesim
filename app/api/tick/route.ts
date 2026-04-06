@@ -1,12 +1,19 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 import {
   DEFAULT_MOCK_TOWN_ID,
   ensureLocalMockTownState,
+  findLocalMockTownState,
   getLocalMockTownState,
   resetLocalMockTown,
+  resetLocalMockTownFromExisting,
 } from "../../../lib/mockData";
-import { runLocalMockTick } from "../../../lib/sim_engine";
+import { createInternalApiHeaders, readInternalApiToken } from "../../../lib/internalApi";
+import { getSessionFromCookieHeader } from "../../../lib/session";
+import { dispatchHostedPlannerQueue, isHostedConvexModeEnabled, runAuthoritativeTick } from "../../../lib/authoritativeTownStore";
+import { hasQueuedPlannerRequests } from "../../../lib/plannerExecution";
+import { runLocalMockTick } from "../../../lib/localTick";
+import { assertCanWriteTown, isTownAccessError, TownAccessError } from "../../../lib/townAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +48,41 @@ function jsonResponse(body: unknown, status = 200) {
   return response;
 }
 
+function getSessionOrNull(request: Request) {
+  return getSessionFromCookieHeader(request.headers.get("cookie") ?? "");
+}
+
+async function triggerHostedPlannerDispatch(request: Request, args: { callerLogin?: string | null; townId: string }) {
+  const internalToken = readInternalApiToken();
+
+  if (!internalToken) {
+    return dispatchHostedPlannerQueue({
+      callerLogin: args.callerLogin,
+      source: "after-response",
+      townId: args.townId,
+    });
+  }
+
+  const response = await fetch(new URL("/api/internal/planner-dispatch", request.url), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...createInternalApiHeaders(internalToken),
+    },
+    body: JSON.stringify({
+      source: "after-response",
+      townId: args.townId,
+    }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Internal planner dispatch request failed with ${response.status}.`);
+  }
+
+  return response.json();
+}
+
 function readQuerySource(request: Request) {
   const searchParams = new URL(request.url).searchParams;
 
@@ -61,15 +103,70 @@ async function readBodySource(request: Request) {
   }
 }
 
-async function handleTick(source: Record<string, unknown>) {
+async function handleTick(request: Request, source: Record<string, unknown>) {
   try {
     const townId = firstString(source.townId) ?? DEFAULT_MOCK_TOWN_ID;
     const seed = firstString(source.seed);
     const reset = parseBoolean(source.reset);
     const count = parseTickCount(source.count);
+    const session = getSessionOrNull(request);
+    const callerLogin = session?.user.login ?? null;
+
+    if (isHostedConvexModeEnabled()) {
+      const result = await runAuthoritativeTick({
+        callerLogin,
+        count,
+        reset,
+        seed,
+        sessionUser: session?.user ?? null,
+        townId,
+      });
+
+      const response = jsonResponse({
+        ok: true,
+        mode: "convex-hosted",
+        townId,
+        tickCount: count,
+        town: result.town,
+        summary: result.summary,
+        npcResults: result.npcResults,
+        events: result.town.events.slice(-30),
+      });
+
+      if (hasQueuedPlannerRequests(result.town)) {
+        after(async () => {
+          try {
+            await triggerHostedPlannerDispatch(request, { callerLogin, townId });
+          } catch (error) {
+            console.error("Hosted planner queue dispatch trigger failed; retrying direct dispatch.", error);
+            try {
+              await dispatchHostedPlannerQueue({
+                callerLogin,
+                source: "after-response",
+                townId,
+              });
+            } catch (dispatchError) {
+              console.error("Hosted planner queue dispatch failed", dispatchError);
+            }
+          }
+        });
+      }
+
+      return response;
+    }
+
+    const existingTown = findLocalMockTownState(townId);
+
+    if (existingTown) {
+      assertCanWriteTown(existingTown, callerLogin);
+    }
 
     if (reset) {
-      resetLocalMockTown({ id: townId, seed });
+      if (existingTown) {
+        resetLocalMockTownFromExisting(existingTown, { seed });
+      } else {
+        resetLocalMockTown({ id: townId, seed });
+      }
     } else {
       ensureLocalMockTownState({ id: townId, seed });
     }
@@ -93,14 +190,17 @@ async function handleTick(source: Record<string, unknown>) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown tick failure";
-    return jsonResponse({ ok: false, mode: "mock-local", error: message }, 500);
+    return jsonResponse(
+      { ok: false, mode: isHostedConvexModeEnabled() ? "convex-hosted" : "mock-local", error: message },
+      error instanceof TownAccessError || isTownAccessError(error) ? 403 : 500,
+    );
   }
 }
 
 export async function GET(request: Request) {
-  return handleTick(readQuerySource(request));
+  return handleTick(request, readQuerySource(request));
 }
 
 export async function POST(request: Request) {
-  return handleTick(await readBodySource(request));
+  return handleTick(request, await readBodySource(request));
 }

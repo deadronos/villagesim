@@ -9,6 +9,7 @@ interface LoginProps {
   currentTownId?: string;
   isLoading?: boolean;
   onEnterTown?: (townId: string) => void;
+  sessionTownId?: string | null;
   sessionUser?: SessionUser | null;
 }
 
@@ -19,7 +20,7 @@ const normalizeTownId = (value: string) =>
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/^-+|-+$/g, "") || "starter-hollow";
 
-export default function Login({ currentTownId, isLoading = false, onEnterTown, sessionUser }: LoginProps) {
+export default function Login({ currentTownId, isLoading = false, onEnterTown, sessionTownId, sessionUser }: LoginProps) {
   const [draftTownId, setDraftTownId] = useState(currentTownId ?? "starter-hollow");
 
   useEffect(() => {
@@ -81,6 +82,11 @@ export default function Login({ currentTownId, isLoading = false, onEnterTown, s
               <p className={styles.helperText}>
                 {sessionUser.name ? `${sessionUser.name} · ` : ""}Your town is tied to this GitHub identity.
               </p>
+              {sessionTownId && sessionTownId !== currentTownId ? (
+                <p className={styles.helperText}>
+                  <a href={`/town/${encodeURIComponent(sessionTownId)}`}>Open your hosted town</a>
+                </p>
+              ) : null}
             </div>
             <form action="/api/auth/logout" method="POST">
               <button className={styles.buttonGhost} type="submit">

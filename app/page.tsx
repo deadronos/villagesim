@@ -4,7 +4,7 @@ import Link from "next/link";
 import styles from "../styles/Home.module.css";
 
 const starterSteps = [
-  "Copy .env.example to .env.local and keep MODEL_MOCK=true for a local-first first run.",
+  "Copy .env.example to .env.local and keep VILLAGESIM_PLANNER_MOCK=true for a local-first first run.",
   "Install dependencies, then start the Next.js shell with npm run dev.",
   "Use the demo town route as the handoff target for the town renderer and backend tracks.",
 ];
@@ -14,9 +14,56 @@ export const metadata: Metadata = {
   description: "Local-first VillageSim starter scaffold built with Next.js, React, and TypeScript.",
 };
 
-export default function HomePage() {
+const authErrorMessages: Record<string, { title: string; description: string }> = {
+  callback_failed: {
+    title: "GitHub sign-in did not complete",
+    description: "The OAuth callback failed before a session could be created. Please try again.",
+  },
+  not_approved: {
+    title: "Hosted access is still approval-only",
+    description:
+      "Your GitHub account is not on the current private-alpha allowlist, so no hosted town session was created.",
+  },
+  state_mismatch: {
+    title: "GitHub sign-in expired",
+    description: "The OAuth state check did not match. Please start sign-in again from this page.",
+  },
+  token_exchange: {
+    title: "GitHub sign-in could not finish",
+    description: "GitHub did not return an access token for this sign-in attempt.",
+  },
+  unconfigured: {
+    title: "GitHub sign-in is not configured",
+    description: "Set the GitHub OAuth environment variables before using hosted sign-in.",
+  },
+};
+
+interface HomePageProps {
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+}
+
+function resolveAuthErrorMessage(rawValue: string | string[] | undefined) {
+  const authError = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+  if (!authError) {
+    return null;
+  }
+
+  return authErrorMessages[authError] ?? null;
+}
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const authErrorMessage = resolveAuthErrorMessage(resolvedSearchParams.auth_error);
+
   return (
     <main className={styles.page}>
+      {authErrorMessage ? (
+        <section className={styles.alert} role="status">
+          <p className={styles.alertTitle}>{authErrorMessage.title}</p>
+          <p className={styles.alertDescription}>{authErrorMessage.description}</p>
+        </section>
+      ) : null}
+
       <section className={styles.hero}>
         <p className={styles.eyebrow}>VillageSim starter</p>
         <h1 className={styles.title}>A minimal local-first app shell for the VillageSim MVP.</h1>

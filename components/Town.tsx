@@ -11,6 +11,7 @@ interface TownProps {
   error?: string | null;
   isLoading?: boolean;
   onOpenTown?: (townId: string) => void;
+  sessionTownId?: string | null;
   sessionUser?: SessionUser | null;
   town?: TownData | null;
   townId: string;
@@ -62,7 +63,7 @@ function summarizeBars(npcs: TownNpc[] = []) {
   };
 }
 
-export default function Town({ error, isLoading = false, onOpenTown, sessionUser, town, townId }: TownProps) {
+export default function Town({ error, isLoading = false, onOpenTown, sessionTownId, sessionUser, town, townId }: TownProps) {
   const activitySummary = useMemo(() => summarizeActivities(town?.npcs), [town?.npcs]);
   const barSummary = useMemo(() => summarizeBars(town?.npcs), [town?.npcs]);
   const activityFeed = town?.activityFeed ?? [];
@@ -90,7 +91,13 @@ export default function Town({ error, isLoading = false, onOpenTown, sessionUser
           </div>
         </div>
 
-        <Login currentTownId={townId} isLoading={isLoading} onEnterTown={onOpenTown} sessionUser={sessionUser} />
+        <Login
+          currentTownId={townId}
+          isLoading={isLoading}
+          onEnterTown={onOpenTown}
+          sessionTownId={sessionTownId}
+          sessionUser={sessionUser}
+        />
       </header>
 
       {isLoading ? (

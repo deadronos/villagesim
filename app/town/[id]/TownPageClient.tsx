@@ -11,6 +11,7 @@ import { mapTownData } from "./townPresentation";
 interface TownPageClientProps {
   initialTown: TownState;
   initialTownId: string;
+  sessionTownId?: string | null;
   sessionUser?: SessionUser | null;
 }
 
@@ -30,7 +31,7 @@ async function fetchTick(townId: string, options: { reset?: boolean } = {}): Pro
   return payload.town;
 }
 
-export default function TownPageClient({ initialTown, initialTownId, sessionUser }: TownPageClientProps) {
+export default function TownPageClient({ initialTown, initialTownId, sessionTownId, sessionUser }: TownPageClientProps) {
   const router = useRouter();
   const [townState, setTownState] = useState<TownState>(initialTown);
   const [isLoading, setIsLoading] = useState(false);
@@ -102,6 +103,7 @@ export default function TownPageClient({ initialTown, initialTownId, sessionUser
           setIsLoading(false);
         }
       }}
+      sessionTownId={sessionTownId}
       sessionUser={sessionUser}
       town={town}
       townId={townId}

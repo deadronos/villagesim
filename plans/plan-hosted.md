@@ -1,16 +1,21 @@
-# Hosted plan: GitHub-auth VillageSim with GitHub Models, Convex, and Next.js App Router
+# Hosted plan: GitHub-auth VillageSim with a private planner service, Convex, and Next.js App Router
+
+For the current implemented setup, secrets, and rollout checklist, see [`SETUP_GUIDE.md`](../SETUP_GUIDE.md). This file remains the forward-looking architecture plan.
 
 ## Summary
 
 This plan moves VillageSim from the current local-first starter to a hosted architecture with:
 
 - GitHub OAuth for player identity
-- optional user-provided GitHub PAT for planner access
-- encrypted server-side PAT storage
+- signed-cookie sessions remaining in Next.js for hosted identity
+- env-based GitHub login approval for the first hosted rollout
 - Next.js App Router for the hosted path
 - bleeding-edge Convex as authoritative state
-- GitHub Models as the first real NPC planner provider
+- a private planner service as the first hosted planner boundary
+- Copilot-backed execution living behind that service
 - hybrid planner execution: inline for local/dev, queued for hosted
+
+The first hosted planner service should be easy to run locally in Docker, callable from local development over `localhost`, and callable from Vercel server-side code in private alpha via a Tailscale Funnel URL.
 
 The current ADRs and codebase already give us strong seams for this:
 
@@ -21,13 +26,15 @@ The current ADRs and codebase already give us strong seams for this:
 
 ## Key architectural decisions
 
-### 1. Keep identity and planner authorization separate
+### 1. Keep the current auth model and add manual approval
 
 GitHub sign-in should establish app identity and session ownership.
 
-GitHub Models access should be authorized separately via a supported credential path, initially a user-provided PAT with `models` access, persisted only in encrypted server-side storage.
+For now, VillageSim should keep the existing GitHub OAuth + signed-cookie session implementation rather than migrating auth platforms.
 
-A PAT must not become the app's primary login mechanism.
+The first hosted rollout should remain intentionally private by approving only a small allowlist of GitHub logins via env/configuration.
+
+Planner authorization material must remain server-side and must not be serialized into `__vs_session` or other client-visible payloads.
 
 ### 2. Migrate to App Router as part of the hosted effort
 
@@ -48,7 +55,19 @@ We should keep the existing design from the architecture docs:
 - planner results remain compact structured JSON validated with zod
 - planner failures must always degrade safely to deterministic fallback behavior
 
-### 4. Move persistence/orchestration to Convex without rewriting simulation rules
+### 4. Put a private planner service between the app and Copilot-backed execution
+
+The Next.js app should call a planner service from server-side code only.
+
+- local development may call the planner service over `localhost`
+- hosted Vercel code may call the planner service over a Tailscale Funnel URL during private alpha
+- browsers should not call the planner service directly
+- the planner service should require a bearer token plus HMAC request signing
+- the planner service should return strict planner JSON only
+
+Copilot SDK and/or Copilot CLI server mode can live behind this service boundary without coupling the app to one runtime transport.
+
+### 5. Move persistence/orchestration to Convex without rewriting simulation rules
 
 The engine should still live in shared helpers under `lib/`.
 
@@ -72,17 +91,21 @@ Convex should become the authoritative storage and orchestration boundary for:
 ### Auth
 
 - GitHub OAuth for sign-in
-- session-based app identity in Next.js
+- session-based app identity in Next.js via the current signed-cookie flow
+- env-based GitHub login allowlist for the first hosted rollout
 - Convex auth bridge for reactive authenticated data access
-- optional planner token management UI for PAT connect/revoke/test
+- optional lightweight planner status UI if the hosted path needs user-visible diagnostics
 
 ### Planner
 
 - `lib/model_proxy.ts` becomes a provider-backed adapter
 - providers:
   - `mock`
-  - `githubModels`
-- GitHub Models is used server-side only
+  - `privateService`
+- the first hosted planner boundary is a small private planner service
+- the planner service can run locally in Docker and expose a private-alpha ingress through Tailscale Funnel
+- Copilot-backed execution is isolated behind the planner service
+- rate limiting, request signing, replay protection, and timeout handling are part of the hosted rollout design
 - planner output remains bound to the current structured `NpcPlan` schema
 
 ### State and execution
@@ -123,53 +146,57 @@ Create the hosted foundation without changing the core simulation model.
 
 ### Phase 2 goal
 
-Add GitHub sign-in and stable user identity/session ownership.
+Keep GitHub sign-in stable and harden hosted identity/session ownership for a private rollout.
 
 ### Phase 2 scope
 
-- implement GitHub OAuth sign-in flow
-- establish session handling in Next.js
-- seed or reopen a town from the authenticated GitHub profile
+- keep the current GitHub OAuth sign-in flow and signed-cookie session model
+- add env-based manual approval for allowed GitHub logins
+- seed or reopen a town from the authenticated approved GitHub profile
 - define the Convex-facing auth bridge strategy for authenticated reads/writes
 
 ### Phase 2 deliverables
 
 - sign-in and sign-out flow
 - authenticated session model
+- manual approval gate for early hosted users
 - profile-seeded town ownership flow
 
 ### Phase 2 exit criteria
 
-- a signed-in user can open their hosted town
+- an approved signed-in user can open their hosted town
 - town ownership is associated with authenticated app identity
-- PATs are not required for login
+- no separate planner connect step is required for player login
 
-## Phase 3 — PAT vault and GitHub Models planner provider
+## Phase 3 — Private planner service and hosted planner transport
 
 ### Phase 3 goal
 
-Allow users to opt into real NPC planning via GitHub Models.
+Introduce a private planner-service boundary for real hosted NPC planning.
 
 ### Phase 3 scope
 
-- add optional PAT connect flow
-- validate PATs for model access before storing
-- encrypt PATs server-side
+- add a small planner service that can run locally in Docker
+- keep planner authorization material out of the signed session cookie
+- call the planner service only from server-side Next.js code
+- sign requests with shared-secret authentication and HMAC integrity metadata
 - refactor `lib/model_proxy.ts` to support providers
-- implement GitHub Models provider with deterministic structured JSON output
+- implement a `privateService` provider with deterministic structured JSON output
+- keep Copilot-backed execution behind the planner service boundary
 - preserve zod validation and deterministic fallback behavior
+- document timeout, replay, rate-limit, and Tailscale Funnel handling for the hosted planner path
 
 ### Phase 3 deliverables
 
-- planner settings/connect UI
-- encrypted PAT storage path
-- `githubModels` planner provider
+- private planner-service API contract
+- `privateService` planner provider
 - planner diagnostics and fallback reasons
+- optional local planner-service runtime using Copilot SDK or Copilot CLI server mode
 
 ### Phase 3 exit criteria
 
-- a connected user PAT can authorize NPC planner calls
-- invalid/missing/rate-limited planner access fails safely
+- hosted planner calls flow server-to-server through the private planner service
+- missing service auth, stale signatures, provider failure, or planner unavailability all fail safely
 - planner output still satisfies the shared schema
 
 ## Phase 4 — Convex authoritative state and hosted execution
@@ -234,6 +261,7 @@ Make planner execution production-safe on hosted infrastructure.
 - `lib/sim_engine.ts`
 - `lib/types.ts`
 - `lib/mockData.ts`
+- `app/api/auth/callback/route.ts`
 - `components/Login.tsx`
 - `components/Town.tsx`
 - `convex/functions/createTownForUser.ts`
@@ -248,7 +276,9 @@ Make planner execution production-safe on hosted infrastructure.
 - `app/town/[id]/page.tsx`
 - `app/api/tick/route.ts`
 - hosted auth route handlers
-- planner settings/token-management route(s)
+- planner signing/request helpers
+- optional approval helper
+- `services/planner/` runtime files
 - `prompts/npc-planner.prompt.yml`
 - `prompts/npc-planner-evals.prompt.yml`
 - new ADR(s) under `docs/ARCHITECTURE/technicaldecisions/`
@@ -257,9 +287,11 @@ Make planner execution production-safe on hosted infrastructure.
 
 - App Router parity for current routes
 - GitHub sign-in works end to end
+- unapproved GitHub logins are blocked from hosted access
 - hosted town ownership is tied to authenticated user identity
-- PATs are encrypted server-side and never exposed after submission
-- GitHub Models planner responses still pass zod validation
+- planner authorization material remains server-side and never appears in the session cookie
+- planner-service responses still pass zod validation
+- hosted planner requests are server-to-server only and signed
 - planner failures degrade safely to mock or deterministic fallback behavior
 - Convex becomes authoritative in hosted mode
 - hosted planner execution is budgeted and observable
@@ -272,7 +304,7 @@ The GitHub issue structure for this plan should be:
 - umbrella issue: Hosted VillageSim plan
 - phase issue 1: Architecture and App Router foundation
 - phase issue 2: GitHub auth and hosted identity
-- phase issue 3: PAT vault and GitHub Models planner provider
+- phase issue 3: Copilot SDK planner integration and hosted planner auth
 - phase issue 4: Convex authoritative state and hosted execution
 - phase issue 5: Planner execution hardening, budgets, and evaluations
 

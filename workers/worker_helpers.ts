@@ -1,6 +1,7 @@
 import { ensureLocalMockTownState, getEnvironmentForNpc, getLocalMockTownState, setLocalMockTownState } from "../lib/mockData";
 import { requestNpcPlan } from "../lib/model_proxy";
-import { applyNpcActionToTown, assignPlanToTown, collectNpcsNeedingDecision, runLocalMockTick } from "../lib/sim_engine";
+import { applyNpcActionToTown, assignPlanToTown, collectNpcsNeedingDecision } from "../lib/sim_engine";
+import { runLocalMockTick } from "../lib/localTick";
 import type { NpcAction, NpcPlan, PlannerRequest, SimulationTickResult, TownState } from "../lib/types";
 
 export async function fetchTownSnapshot(townId: string): Promise<TownState> {

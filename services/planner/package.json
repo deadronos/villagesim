@@ -1,0 +1,25 @@
+{
+  "name": "@villagesim/planner-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Private planner service for VillageSim hosted execution.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx watch src/server.ts",
+    "start": "node --import tsx src/server.ts"
+  },
+  "dependencies": {
+    "tsx": "^4.21.0",
+    "zod": "^4.3.6",
+    "@github/copilot":"^1.0.11",
+    "@github/copilot-sdk":"^0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}
