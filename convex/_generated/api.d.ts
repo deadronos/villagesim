@@ -11,8 +11,10 @@
 import type * as functions_applyNpcAction from "../functions/applyNpcAction.js";
 import type * as functions_assignPlanToNpc from "../functions/assignPlanToNpc.js";
 import type * as functions_createTownForUser from "../functions/createTownForUser.js";
+import type * as functions_saveTownState from "../functions/saveTownState.js";
 import type * as queries_getTown from "../queries/getTown.js";
 import type * as queries_npcsNeedingDecision from "../queries/npcsNeedingDecision.js";
+import type * as townStateStore from "../townStateStore.js";
 
 import type {
   ApiFromModules,
@@ -24,8 +26,10 @@ declare const fullApi: ApiFromModules<{
   "functions/applyNpcAction": typeof functions_applyNpcAction;
   "functions/assignPlanToNpc": typeof functions_assignPlanToNpc;
   "functions/createTownForUser": typeof functions_createTownForUser;
+  "functions/saveTownState": typeof functions_saveTownState;
   "queries/getTown": typeof queries_getTown;
   "queries/npcsNeedingDecision": typeof queries_npcsNeedingDecision;
+  townStateStore: typeof townStateStore;
 }>;
 
 /**
