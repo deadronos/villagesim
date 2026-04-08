@@ -4,10 +4,36 @@ import { createMockTown } from "../../lib/mockData";
 import { mapTownData, normalizeTownId, titleizeTownId } from "../../app/town/[id]/townPresentation";
 
 describe("town presentation helpers", () => {
+  describe("titleizeTownId", () => {
+    it("titleizes normal hyphenated ids", () => {
+      expect(titleizeTownId("lantern-hollow")).toBe("Lantern Hollow");
+      expect(titleizeTownId("super-cool-town")).toBe("Super Cool Town");
+    });
+
+    it("handles single words", () => {
+      expect(titleizeTownId("hollow")).toBe("Hollow");
+    });
+
+    it("handles empty strings", () => {
+      expect(titleizeTownId("")).toBe("");
+    });
+
+    it("handles consecutive hyphens", () => {
+      expect(titleizeTownId("lantern--hollow")).toBe("Lantern Hollow");
+    });
+
+    it("handles leading and trailing hyphens", () => {
+      expect(titleizeTownId("-lantern-hollow-")).toBe("Lantern Hollow");
+    });
+
+    it("preserves existing capitalization in parts", () => {
+      expect(titleizeTownId("lANtern-Hollow")).toBe("LANtern Hollow");
+    });
+  });
+
   it("normalizes and titleizes town ids", () => {
     expect(normalizeTownId(["  My Cool Town!!  "])).toBe("my-cool-town");
     expect(normalizeTownId(undefined)).toBe("starter-hollow");
-    expect(titleizeTownId("lantern-hollow")).toBe("Lantern Hollow");
   });
 
   it("maps a town state into UI-friendly town data", () => {
