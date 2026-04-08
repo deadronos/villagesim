@@ -32,6 +32,23 @@ describe("session helpers", () => {
     }
   });
 
+  it("correctly encodes and signs a session payload", () => {
+    const payload: SessionPayload = {
+      user: {
+        login: "deadronos",
+      },
+      townId: "deadronos-town",
+      expiresAt: 1234567890000,
+    };
+
+    const encoded = encodeSession(payload);
+    const [encodedPayload, signature] = encoded.split(".");
+
+    expect(encodedPayload).toBe(Buffer.from(JSON.stringify(payload)).toString("base64url"));
+    expect(signature).toBe(signSessionPayload(encodedPayload));
+    expect(encoded.split(".")).toHaveLength(2);
+  });
+
   it("round-trips a signed session payload", () => {
     const payload: SessionPayload = {
       user: {
