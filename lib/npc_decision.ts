@@ -30,40 +30,74 @@ export const DEFAULT_DECISION_WEIGHTS: DecisionWeights = {
   },
 };
 
-function targetFromEnv(kind: DecisionCandidateType, env: NpcEnvironment): DecisionTarget | undefined {
+function targetFromEnv(
+  kind: DecisionCandidateType,
+  env: NpcEnvironment,
+): DecisionTarget | undefined {
   switch (kind) {
     case "work": {
-      const location = env.nearby.workshop ?? env.nearby.field ?? env.nearby.market;
+      const location =
+        env.nearby.workshop ?? env.nearby.field ?? env.nearby.market;
       return location
-        ? { id: location.id, kind: "location", position: location.position, label: location.label }
+        ? {
+            id: location.id,
+            kind: "location",
+            position: location.position,
+            label: location.label,
+          }
         : undefined;
     }
     case "eat": {
       const location = env.nearby.food;
       return location
-        ? { id: location.id, kind: "location", position: location.position, label: location.label }
+        ? {
+            id: location.id,
+            kind: "location",
+            position: location.position,
+            label: location.label,
+          }
         : undefined;
     }
     case "rest": {
       const location = env.nearby.home;
       return location
-        ? { id: location.id, kind: "location", position: location.position, label: location.label }
+        ? {
+            id: location.id,
+            kind: "location",
+            position: location.position,
+            label: location.label,
+          }
         : undefined;
     }
     case "trade": {
       const location = env.nearby.market ?? env.nearby.food;
       return location
-        ? { id: location.id, kind: "location", position: location.position, label: location.label }
+        ? {
+            id: location.id,
+            kind: "location",
+            position: location.position,
+            label: location.label,
+          }
         : undefined;
     }
     case "social": {
       const person = env.nearby.people[0];
       if (person) {
-        return { id: person.id, kind: "npc", position: person.position, label: person.name };
+        return {
+          id: person.id,
+          kind: "npc",
+          position: person.position,
+          label: person.name,
+        };
       }
       const location = env.nearby.plaza;
       return location
-        ? { id: location.id, kind: "location", position: location.position, label: location.label }
+        ? {
+            id: location.id,
+            kind: "location",
+            position: location.position,
+            label: location.label,
+          }
         : undefined;
     }
     default:
@@ -71,11 +105,18 @@ function targetFromEnv(kind: DecisionCandidateType, env: NpcEnvironment): Decisi
   }
 }
 
-export function buildDecisionCandidates(npc: NpcState, env: NpcEnvironment): DecisionCandidate[] {
+export function buildDecisionCandidates(
+  npc: NpcState,
+  env: NpcEnvironment,
+): DecisionCandidate[] {
   return [
     {
       type: "work",
-      base: 0.95 + (env.timeOfDay === "morning" || env.timeOfDay === "afternoon" ? 0.15 : -0.15),
+      base:
+        0.95 +
+        (env.timeOfDay === "morning" || env.timeOfDay === "afternoon"
+          ? 0.15
+          : -0.15),
       target: targetFromEnv("work", env),
       reason: `${npc.name} can make role progress right now.`,
       prefersPlan: true,
@@ -114,7 +155,11 @@ export function buildDecisionCandidates(npc: NpcState, env: NpcEnvironment): Dec
   ];
 }
 
-function candidateNeedFactor(candidate: DecisionCandidate, npc: NpcState, weights: DecisionWeights): number {
+function candidateNeedFactor(
+  candidate: DecisionCandidate,
+  npc: NpcState,
+  weights: DecisionWeights,
+): number {
   switch (candidate.type) {
     case "eat":
       return 1 + (npc.status.hunger / 100) * weights.hunger;
@@ -125,7 +170,7 @@ function candidateNeedFactor(candidate: DecisionCandidate, npc: NpcState, weight
     case "work":
       return 1 + ((100 - npc.status.focus) / 100) * weights.focus;
     case "trade":
-      return 1 + (((npc.inventory.grain + npc.inventory.wood) > 0 ? 15 : 0) / 100);
+      return 1 + (npc.inventory.grain + npc.inventory.wood > 0 ? 15 : 0) / 100;
     default:
       return 1;
   }
@@ -143,7 +188,11 @@ function scoreCandidate(
   score *= candidateNeedFactor(candidate, npc, weights);
 
   if (candidate.target) {
-    const distance = Math.max(1, env.distances[candidate.target.id] ?? distanceBetween(candidate.target.position, npc.position));
+    const distance = Math.max(
+      1,
+      env.distances[candidate.target.id] ??
+        distanceBetween(candidate.target.position, npc.position),
+    );
     score *= Math.pow(weights.proximityDecay, distance / 3);
   }
 
@@ -151,8 +200,14 @@ function scoreCandidate(
   return Math.max(0.01, score * jitter);
 }
 
-function pickWeighted(scoredCandidates: ScoredDecisionCandidate[], rng: RandomSource): ScoredDecisionCandidate {
-  const total = scoredCandidates.reduce((sum, candidate) => sum + candidate.score, 0);
+function pickWeighted(
+  scoredCandidates: ScoredDecisionCandidate[],
+  rng: RandomSource,
+): ScoredDecisionCandidate {
+  const total = scoredCandidates.reduce(
+    (sum, candidate) => sum + candidate.score,
+    0,
+  );
   let threshold = rng() * total;
   for (const candidate of scoredCandidates) {
     threshold -= candidate.score;
@@ -176,36 +231,78 @@ function decisionToPlanIntent(type: DecisionCandidateType): PlanIntent {
   }
 }
 
-function createImmediateAction(npc: NpcState, selected: DecisionCandidate): NpcAction {
+function createImmediateAction(
+  npc: NpcState,
+  selected: DecisionCandidate,
+): NpcAction {
   const target = selected.target;
   const distance = target ? distanceBetween(target.position, npc.position) : 0;
 
   switch (selected.type) {
     case "work":
       if (target && distance > 1.5) {
-        return { type: "move", target: target.position, targetId: target.id, speed: 1 };
+        return {
+          type: "move",
+          target: target.position,
+          targetId: target.id,
+          speed: 1,
+        };
       }
-      return { type: "work", task: `${npc.role} task`, targetId: target?.id, remainingTicks: 1 };
+      return {
+        type: "work",
+        task: `${npc.role} task`,
+        targetId: target?.id,
+        remainingTicks: 1,
+      };
     case "eat":
       if (target && distance > 1.5 && npc.inventory.food <= 0) {
-        return { type: "move", target: target.position, targetId: target.id, speed: 1 };
+        return {
+          type: "move",
+          target: target.position,
+          targetId: target.id,
+          speed: 1,
+        };
       }
       return { type: "eat", amount: 1, targetId: target?.id };
     case "rest":
       if (target && distance > 1.5) {
-        return { type: "move", target: target.position, targetId: target.id, speed: 1 };
+        return {
+          type: "move",
+          target: target.position,
+          targetId: target.id,
+          speed: 1,
+        };
       }
       return { type: "rest", remainingTicks: 1, targetId: target?.id };
     case "social":
       if (target && distance > 1.5) {
-        return { type: "move", target: target.position, targetId: target.id, speed: 1 };
+        return {
+          type: "move",
+          target: target.position,
+          targetId: target.id,
+          speed: 1,
+        };
       }
-      return { type: "speak", text: `Hi ${target?.label ?? "there"}!`, targetId: target?.id };
+      return {
+        type: "speak",
+        text: `Hi ${target?.label ?? "there"}!`,
+        targetId: target?.id,
+      };
     case "trade":
       if (target && distance > 1.5) {
-        return { type: "move", target: target.position, targetId: target.id, speed: 1 };
+        return {
+          type: "move",
+          target: target.position,
+          targetId: target.id,
+          speed: 1,
+        };
       }
-      return { type: "trade", item: npc.status.hunger > 55 ? "food" : "grain", amount: 1, targetId: target?.id };
+      return {
+        type: "trade",
+        item: npc.status.hunger > 55 ? "food" : "grain",
+        amount: 1,
+        targetId: target?.id,
+      };
     case "wait":
     default:
       return { type: "wait", remainingTicks: 1 };
@@ -232,10 +329,13 @@ export function weightedDecision(
     }))
     .sort((left, right) => right.score - left.score);
 
-  const selected = pickWeighted(scoredCandidates, rng).candidate;
-  const selectedScore = scoredCandidates.find((entry) => entry.candidate.type === selected.type)?.score ?? 0;
+  const picked = pickWeighted(scoredCandidates, rng);
+  const selected = picked.candidate;
+  const selectedScore = picked.score;
   const shouldRequestPlan = Boolean(
-    selected.prefersPlan && (!npc.plan || npc.plan.status === "done") && selectedScore >= weights.planThreshold,
+    selected.prefersPlan &&
+    (!npc.plan || npc.plan.status === "done") &&
+    selectedScore >= weights.planThreshold,
   );
 
   if (shouldRequestPlan) {

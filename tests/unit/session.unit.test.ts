@@ -32,6 +32,65 @@ describe("session helpers", () => {
     }
   });
 
+  it("correctly encodes and signs a session payload", () => {
+    const payload: SessionPayload = {
+      user: {
+        login: "deadronos",
+      },
+      townId: "deadronos-town",
+      expiresAt: 1234567890000,
+    };
+
+    const encoded = encodeSession(payload);
+    const [encodedPayload, signature] = encoded.split(".");
+
+    expect(encodedPayload).toBe(Buffer.from(JSON.stringify(payload)).toString("base64url"));
+    expect(signature).toBe(signSessionPayload(encodedPayload));
+    expect(encoded.split(".")).toHaveLength(2);
+  });
+
+<<<<<<< HEAD
+
+  it("encodes a session payload correctly", () => {
+    const payload: SessionPayload = {
+      user: { login: "testuser" },
+      townId: "test-town",
+      expiresAt: 1234567890,
+    };
+
+    const encoded = encodeSession(payload);
+    const parts = encoded.split(".");
+    expect(parts.length).toBe(2);
+
+    const [encodedPayload, signature] = parts;
+
+    // Verify payload encoding
+    const decodedPayload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
+    expect(decodedPayload).toEqual(payload);
+
+    // Verify signature
+    const expectedSignature = signSessionPayload(encodedPayload);
+    expect(signature).toBe(expectedSignature);
+  });
+=======
+  it("correctly encodes and signs a session payload", () => {
+    const payload: SessionPayload = {
+      user: {
+        login: "deadronos",
+      },
+      townId: "deadronos-town",
+      expiresAt: 1234567890000,
+    };
+
+    const encoded = encodeSession(payload);
+    const [encodedPayload, signature] = encoded.split(".");
+
+    expect(encodedPayload).toBe(Buffer.from(JSON.stringify(payload)).toString("base64url"));
+    expect(signature).toBe(signSessionPayload(encodedPayload));
+    expect(encoded.split(".")).toHaveLength(2);
+  });
+
+>>>>>>> origin/main
   it("round-trips a signed session payload", () => {
     const payload: SessionPayload = {
       user: {

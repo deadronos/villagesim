@@ -58,6 +58,7 @@ describe("sim_engine helpers", () => {
     });
     expect(collectNpcsNeedingDecision(town, 1).some((npc) => npc.id === "npc-mira")).toBe(false);
     expect(() => applyNpcActionToTown(town, "missing", { remainingTicks: 1, type: "wait" })).toThrow("NPC missing");
+    expect(() => assignPlanToTown(town, "missing", {} as any)).toThrow("NPC missing");
   });
 
   it("progresses actions and planner-assigned work during a simulation tick", async () => {
