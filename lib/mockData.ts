@@ -182,18 +182,8 @@ export function getTownLocation(town: TownState, id: string | undefined): TownLo
 }
 
 function findClosestLocation(town: TownState, position: Position, kinds: TownLocationKind[]): TownLocation | undefined {
-  let closest: TownLocation | undefined = undefined;
-  let minDist = Infinity;
-  for (const loc of town.locations) {
-    if (kinds.includes(loc.kind)) {
-      const dist = distanceBetween(loc.position, position);
-      if (dist < minDist) {
-        minDist = dist;
-        closest = loc;
-      }
-    }
-  }
-  return closest;
+  const locations = town.locations.filter((location) => kinds.includes(location.kind));
+  return locations.sort((left, right) => distanceBetween(left.position, position) - distanceBetween(right.position, position))[0];
 }
 
 function inferTimeOfDay(tick: number): NpcEnvironment["timeOfDay"] {
