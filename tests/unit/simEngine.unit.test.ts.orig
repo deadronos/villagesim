@@ -218,14 +218,4 @@ describe("sim_engine helpers", () => {
       expect(npcsMixed.map(n => n.id)).not.toContain("npc-toma");
     });
   });
-
-  describe("applyNpcActionToTown", () => {
-    it("throws an error when the npcId does not exist in the town", () => {
-      const town = createMockTown({ id: "error-town" });
-
-      expect(() => {
-        applyNpcActionToTown(town, "non-existent-npc", { type: "wait" });
-      }).toThrowError("NPC non-existent-npc was not found in town error-town");
-    });
-  });
 });
