@@ -32,6 +32,28 @@ describe("session helpers", () => {
     }
   });
 
+
+  it("encodes a session payload correctly", () => {
+    const payload: SessionPayload = {
+      user: { login: "testuser" },
+      townId: "test-town",
+      expiresAt: 1234567890,
+    };
+
+    const encoded = encodeSession(payload);
+    const parts = encoded.split(".");
+    expect(parts.length).toBe(2);
+
+    const [encodedPayload, signature] = parts;
+
+    // Verify payload encoding
+    const decodedPayload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
+    expect(decodedPayload).toEqual(payload);
+
+    // Verify signature
+    const expectedSignature = signSessionPayload(encodedPayload);
+    expect(signature).toBe(expectedSignature);
+  });
   it("round-trips a signed session payload", () => {
     const payload: SessionPayload = {
       user: {
