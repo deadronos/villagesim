@@ -182,8 +182,18 @@ export function getTownLocation(town: TownState, id: string | undefined): TownLo
 }
 
 function findClosestLocation(town: TownState, position: Position, kinds: TownLocationKind[]): TownLocation | undefined {
-  const locations = town.locations.filter((location) => kinds.includes(location.kind));
-  return locations.sort((left, right) => distanceBetween(left.position, position) - distanceBetween(right.position, position))[0];
+  let closest: TownLocation | undefined = undefined;
+  let minDist = Infinity;
+  for (const loc of town.locations) {
+    if (kinds.includes(loc.kind)) {
+      const dist = distanceBetween(loc.position, position);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = loc;
+      }
+    }
+  }
+  return closest;
 }
 
 function inferTimeOfDay(tick: number): NpcEnvironment["timeOfDay"] {
@@ -220,11 +230,20 @@ export function getEnvironmentForNpc(
   const food = findClosestLocation(town, npc.position, ["bakery", "market", "tavern"]);
   const plaza = findClosestLocation(town, npc.position, ["plaza"]);
   const workshop = findClosestLocation(town, npc.position, ["workshop"]);
-  const people: NpcSummary[] = townNpcs
-    .filter((otherNpc) => otherNpc.id !== npc.id)
-    .sort((left, right) => distanceBetween(left.position, npc.position) - distanceBetween(right.position, npc.position))
+  const peopleWithDistances = [];
+  for (const otherNpc of townNpcs) {
+    if (otherNpc.id !== npc.id) {
+      peopleWithDistances.push({
+        npc: otherNpc,
+        distance: distanceBetween(otherNpc.position, npc.position),
+      });
+    }
+  }
+
+  const people: NpcSummary[] = peopleWithDistances
+    .sort((left, right) => left.distance - right.distance)
     .slice(0, 3)
-    .map((otherNpc) => ({
+    .map(({ npc: otherNpc }) => ({
       id: otherNpc.id,
       name: otherNpc.name,
       role: otherNpc.role,
