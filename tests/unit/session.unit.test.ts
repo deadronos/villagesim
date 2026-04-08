@@ -75,6 +75,30 @@ describe("session helpers", () => {
 
     expect(decodeSession(tampered)).toBeNull();
   });
+  it("rejects a session token with an invalid signature length", () => {
+    const encoded = encodeSession({
+      user: { login: "deadronos" },
+      townId: "deadronos-town",
+      expiresAt: Date.now() + 60_000,
+    });
+
+    // Appending a character changes the length of the signature
+    const tampered = `${encoded}x`;
+
+    expect(decodeSession(tampered)).toBeNull();
+  });
+
+  it("rejects a malformed session token without a dot", () => {
+    expect(decodeSession("invalid-token-without-dot")).toBeNull();
+  });
+
+  it("rejects a session token with a non-JSON payload", () => {
+    const invalidBase64 = Buffer.from("not-a-json-payload").toString("base64url");
+    const signature = signSessionPayload(invalidBase64);
+    const tampered = `${invalidBase64}.${signature}`;
+
+    expect(decodeSession(tampered)).toBeNull();
+  });
 
   it("rejects an expired session token", () => {
     const encoded = encodeSession({
