@@ -58,7 +58,6 @@ describe("sim_engine helpers", () => {
     });
     expect(collectNpcsNeedingDecision(town, 1).some((npc) => npc.id === "npc-mira")).toBe(false);
     expect(() => applyNpcActionToTown(town, "missing", { remainingTicks: 1, type: "wait" })).toThrow("NPC missing");
-    expect(() => assignPlanToTown(town, "missing", {} as any)).toThrow("NPC missing");
   });
 
   it("progresses actions and planner-assigned work during a simulation tick", async () => {
@@ -217,16 +216,6 @@ describe("sim_engine helpers", () => {
       town.npcs["npc-toma"]!.currentAction = { type: "wait", remainingTicks: 1 };
       const npcsMixed = collectNpcsNeedingDecision(town, 5);
       expect(npcsMixed.map(n => n.id)).not.toContain("npc-toma");
-    });
-  });
-
-  describe("applyNpcActionToTown", () => {
-    it("throws an error when the npcId does not exist in the town", () => {
-      const town = createMockTown({ id: "error-town" });
-
-      expect(() => {
-        applyNpcActionToTown(town, "non-existent-npc", { type: "wait" });
-      }).toThrowError("NPC non-existent-npc was not found in town error-town");
     });
   });
 });
