@@ -182,8 +182,20 @@ export function getTownLocation(town: TownState, id: string | undefined): TownLo
 }
 
 function findClosestLocation(town: TownState, position: Position, kinds: TownLocationKind[]): TownLocation | undefined {
-  const locations = town.locations.filter((location) => kinds.includes(location.kind));
-  return locations.sort((left, right) => distanceBetween(left.position, position) - distanceBetween(right.position, position))[0];
+  let closest: TownLocation | undefined = undefined;
+  let minDistance = Infinity;
+
+  for (const location of town.locations) {
+    if (kinds.includes(location.kind)) {
+      const distance = distanceBetween(location.position, position);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closest = location;
+      }
+    }
+  }
+
+  return closest;
 }
 
 function inferTimeOfDay(tick: number): NpcEnvironment["timeOfDay"] {
