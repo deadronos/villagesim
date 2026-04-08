@@ -122,6 +122,40 @@ describe("session helpers", () => {
     expect(decodeSession(encoded)).toBeNull();
   });
 
+  describe("parseCookies", () => {
+    it("returns an empty object for an empty string", () => {
+      expect(parseCookies("")).toEqual({});
+    });
+
+    it("parses a single cookie", () => {
+      expect(parseCookies("theme=night")).toEqual({ theme: "night" });
+    });
+
+    it("parses multiple cookies", () => {
+      expect(parseCookies("theme=night; mode=mock")).toEqual({ theme: "night", mode: "mock" });
+    });
+
+    it("trims whitespace around keys and values", () => {
+      expect(parseCookies("  theme = night  ;  mode= mock ")).toEqual({ theme: "night", mode: "mock" });
+    });
+
+    it("ignores parts without an equals sign", () => {
+      expect(parseCookies("theme=night; badCookie; mode=mock")).toEqual({ theme: "night", mode: "mock" });
+    });
+
+    it("handles empty values correctly", () => {
+      expect(parseCookies("theme=")).toEqual({ theme: "" });
+    });
+
+    it("handles values containing an equals sign", () => {
+      expect(parseCookies("theme=night=day")).toEqual({ theme: "night=day" });
+    });
+
+    it("ignores parts missing a key (starting with equals sign)", () => {
+      expect(parseCookies("=night; theme=dark")).toEqual({ theme: "dark" });
+    });
+  });
+
   it("parses cookies and extracts the session from a cookie header", () => {
     const encoded = encodeSession({
       user: { login: "deadronos" },
