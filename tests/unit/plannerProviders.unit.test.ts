@@ -49,13 +49,14 @@ function createCopilotFactory(options: {
 
 describe("planner providers", () => {
   it("defaults to the mock provider when no planner runtime is configured", () => {
-    const provider = createPlannerProviderFromEnv({});
+    const provider = createPlannerProviderFromEnv({ NODE_ENV: "test" });
 
     expect(provider.name).toBe("mock");
   });
 
   it("creates the Copilot provider when explicitly requested", () => {
     const provider = createPlannerProviderFromEnv({
+      NODE_ENV: "test",
       VILLAGESIM_PLANNER_SERVICE_PROVIDER: "copilot",
     });
 

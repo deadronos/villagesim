@@ -117,7 +117,7 @@ describe("TownPageClient", () => {
     vi.spyOn(window, "setInterval").mockImplementation(((callback: TimerHandler) => {
       intervalCallback = callback as () => void;
       return 1 as unknown as ReturnType<typeof setInterval>;
-    }) as typeof window.setInterval);
+    }) as unknown as typeof window.setInterval);
     vi.spyOn(window, "clearInterval").mockImplementation(() => {});
 
     render(<TownPageClient initialTown={initialTown} initialTownId="demo-town" />);

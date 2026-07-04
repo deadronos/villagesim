@@ -54,7 +54,7 @@ async function startTestServer(config: PlannerServiceConfig = createConfig()): P
   const logger = vi.fn();
   const server = createServer(
     createPlannerServiceHandler(config, {
-      env: {},
+      env: { NODE_ENV: "test" },
       logger,
       now: () => FIXED_NOW_MS,
     }),
@@ -85,7 +85,7 @@ async function startTestServer(config: PlannerServiceConfig = createConfig()): P
   };
 }
 
-let activeServer: { close: () => Promise<void> } | null = null;
+let activeServer: { baseUrl: string; close: () => Promise<void> } | null = null;
 
 beforeEach(() => {
   activeServer = null;
@@ -249,7 +249,7 @@ describe("planner service", () => {
     const logger = vi.fn();
     const server = createServer(
       createPlannerServiceHandler(createConfig(), {
-        env: {},
+        env: { NODE_ENV: "test" },
         logger,
         now: () => FIXED_NOW_MS,
         provider,
@@ -266,6 +266,7 @@ describe("planner service", () => {
     }
 
     activeServer = {
+      baseUrl: `http://127.0.0.1:${address.port}`,
       close: () =>
         new Promise<void>((resolve, reject) => {
           server.close((error) => {
@@ -279,7 +280,7 @@ describe("planner service", () => {
     };
 
     const request = createSignedRequest("planner-request-8");
-    const response = await fetch(`http://127.0.0.1:${address.port}/plan`, {
+    const response = await fetch(`${activeServer.baseUrl}/plan`, {
       method: "POST",
       headers: request.headers,
       body: request.body,

@@ -1,4 +1,4 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { createServer as createNetServer } from "node:net";
 import { fileURLToPath } from "node:url";
 
@@ -12,7 +12,7 @@ const HOST = "127.0.0.1";
 
 type StartedProcess = {
   baseUrl: string;
-  child: ChildProcessWithoutNullStreams;
+  child: ChildProcess;
   logs: string[];
   stop: () => Promise<void>;
 };
@@ -62,10 +62,10 @@ function startProcess(command: string, args: string[], env: NodeJS.ProcessEnv): 
   });
 
   const logs: string[] = [];
-  child.stdout.on("data", (chunk: Buffer) => {
+  child.stdout?.on("data", (chunk: Buffer) => {
     logs.push(chunk.toString("utf8"));
   });
-  child.stderr.on("data", (chunk: Buffer) => {
+  child.stderr?.on("data", (chunk: Buffer) => {
     logs.push(chunk.toString("utf8"));
   });
 
@@ -88,7 +88,7 @@ function startProcess(command: string, args: string[], env: NodeJS.ProcessEnv): 
 
 async function waitForHttpResponse(
   url: string,
-  child: ChildProcessWithoutNullStreams,
+  child: ChildProcess,
   logs: string[],
   predicate: (response: Response) => boolean = (response) => response.ok,
   timeoutMs = 120_000,

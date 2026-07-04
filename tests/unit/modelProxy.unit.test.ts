@@ -74,7 +74,7 @@ describe("requestNpcPlan", () => {
     expect(result.plan.rationale).toBe("Remote planner response");
     expect(fetchMock).toHaveBeenCalledOnce();
 
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     const headers = new Headers(init.headers);
     const body = JSON.parse(String(init.body)) as {
       metadata: {

@@ -4,7 +4,7 @@ import { assertCanReadTown, assertCanWriteTown, canAccessTown, isTownAccessError
 
 const profileTown = {
   id: "deadronos-town",
-  metadata: { createdFrom: "profile" as const },
+  metadata: { createdFrom: "profile" as const, source: "mock" as const, tokenSummary: null },
   owner: { login: "deadronos" },
 };
 
@@ -14,7 +14,7 @@ describe("town access helpers", () => {
       canAccessTown(
         {
           id: "demo-town",
-          metadata: { createdFrom: "seed" as const },
+          metadata: { createdFrom: "seed" as const, source: "mock" as const, tokenSummary: null },
           owner: { login: "demo-user" },
         },
         null,
