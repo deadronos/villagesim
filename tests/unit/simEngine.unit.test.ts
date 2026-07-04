@@ -58,7 +58,7 @@ describe("sim_engine helpers", () => {
     });
     expect(collectNpcsNeedingDecision(town, 1).some((npc) => npc.id === "npc-mira")).toBe(false);
     expect(() => applyNpcActionToTown(town, "missing", { remainingTicks: 1, type: "wait" })).toThrow("NPC missing");
-    expect(() => assignPlanToTown(town, "missing", {} as any)).toThrow("NPC missing");
+    expect(() => assignPlanToTown(town, "missing", {} as unknown as Parameters<typeof assignPlanToTown>[2])).toThrow("NPC missing");
   });
 
   it("progresses actions and planner-assigned work during a simulation tick", async () => {
@@ -176,7 +176,7 @@ describe("sim_engine helpers", () => {
         rationale: "Work",
         status: "active",
         currentStepIndex: 0,
-        steps: [{ id: "step-1", status: "pending", type: "wait" }],
+        steps: [{ id: "step-1", seconds: 0, status: "pending", type: "wait" }],
         createdAt: town.now,
         updatedAt: town.now,
       };
@@ -184,11 +184,11 @@ describe("sim_engine helpers", () => {
       // Scenario 3: Completed plan. Should need decision.
       town.npcs["npc-toma"]!.plan = {
         id: "completed-plan",
-        intent: "rest",
+        intent: "restock",
         rationale: "Rest",
         status: "done",
         currentStepIndex: 0,
-        steps: [{ id: "step-1", status: "done", type: "wait" }],
+        steps: [{ id: "step-1", seconds: 0, status: "done", type: "wait" }],
         createdAt: town.now,
         updatedAt: town.now,
       };

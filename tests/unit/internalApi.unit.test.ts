@@ -4,8 +4,8 @@ import { createInternalApiHeaders, isInternalApiRequestAuthorized, readInternalA
 
 describe("internal API helpers", () => {
   it("reads and trims the configured bearer token", () => {
-    expect(readInternalApiToken({ VILLAGESIM_INTERNAL_API_TOKEN: "  internal-token  " })).toBe("internal-token");
-    expect(readInternalApiToken({ VILLAGESIM_INTERNAL_API_TOKEN: "   " })).toBeNull();
+    expect(readInternalApiToken({ NODE_ENV: "test", VILLAGESIM_INTERNAL_API_TOKEN: "  internal-token  " })).toBe("internal-token");
+    expect(readInternalApiToken({ NODE_ENV: "test", VILLAGESIM_INTERNAL_API_TOKEN: "   " })).toBeNull();
   });
 
   it("builds authorization headers only when a token is available", () => {
@@ -16,7 +16,7 @@ describe("internal API helpers", () => {
   });
 
   it("authorizes requests only when the bearer token matches", () => {
-    const env = { VILLAGESIM_INTERNAL_API_TOKEN: "internal-token" };
+    const env: NodeJS.ProcessEnv = { NODE_ENV: "test", VILLAGESIM_INTERNAL_API_TOKEN: "internal-token" };
 
     expect(
       isInternalApiRequestAuthorized(

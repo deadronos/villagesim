@@ -7,20 +7,25 @@ describe("buildDecisionCandidates", () => {
     id: "npc-1",
     name: "Test Npc",
     role: "farmer",
+    homeId: "home-test",
     position: { x: 0, y: 0 },
-    inventory: { grain: 0, wood: 0, food: 0 },
+    inventory: { coins: 0, grain: 0, wood: 0, food: 0 },
     status: { hunger: 100, energy: 100, social: 100, focus: 100 },
+    memory: { recentEvents: [], summary: "" },
     lastDecisionTick: 0,
     plan: null,
     currentAction: null,
   };
 
   const defaultEnv: NpcEnvironment = {
+    tick: 0,
     timeOfDay: "morning",
     distances: {},
     nearby: {
       people: [],
+      locations: [],
     },
+    townMood: 0,
   };
 
   it("returns base candidates correctly for morning", () => {
@@ -55,43 +60,43 @@ describe("buildDecisionCandidates", () => {
   });
 
   it("increases social base value if people are nearby", () => {
-    const envWithPeople = { ...defaultEnv, nearby: { people: [{ id: "person-1", name: "Person 1", position: { x: 1, y: 1 } }] } };
+    const envWithPeople = { ...defaultEnv, nearby: { ...defaultEnv.nearby, people: [{ id: "person-1", name: "Person 1", position: { x: 1, y: 1 }, role: "farmer" as const }] } };
     const candidates = buildDecisionCandidates(defaultNpc, envWithPeople);
     expect(candidates).toContainEqual(expect.objectContaining({ type: "social", base: 0.65 }));
   });
 
   it("extracts work target from env", () => {
-     const envWithMarket = { ...defaultEnv, nearby: { people: [], market: { id: "market-1", label: "Market", position: { x: 10, y: 10 } } } };
+     const envWithMarket = { ...defaultEnv, nearby: { ...defaultEnv.nearby, market: { id: "market-1", kind: "market" as const, label: "Market", position: { x: 10, y: 10 } } } };
      const candidates = buildDecisionCandidates(defaultNpc, envWithMarket);
      expect(candidates.find(c => c.type === "work")?.target).toEqual({ id: "market-1", kind: "location", position: { x: 10, y: 10 }, label: "Market" });
   });
 
   it("extracts eat target from env", () => {
-     const envWithFood = { ...defaultEnv, nearby: { people: [], food: { id: "food-1", label: "Food", position: { x: 10, y: 10 } } } };
+     const envWithFood = { ...defaultEnv, nearby: { ...defaultEnv.nearby, food: { id: "food-1", kind: "bakery" as const, label: "Food", position: { x: 10, y: 10 } } } };
      const candidates = buildDecisionCandidates(defaultNpc, envWithFood);
      expect(candidates.find(c => c.type === "eat")?.target).toEqual({ id: "food-1", kind: "location", position: { x: 10, y: 10 }, label: "Food" });
   });
 
   it("extracts rest target from env", () => {
-     const envWithHome = { ...defaultEnv, nearby: { people: [], home: { id: "home-1", label: "Home", position: { x: 10, y: 10 } } } };
+     const envWithHome = { ...defaultEnv, nearby: { ...defaultEnv.nearby, home: { id: "home-1", kind: "home" as const, label: "Home", position: { x: 10, y: 10 } } } };
      const candidates = buildDecisionCandidates(defaultNpc, envWithHome);
      expect(candidates.find(c => c.type === "rest")?.target).toEqual({ id: "home-1", kind: "location", position: { x: 10, y: 10 }, label: "Home" });
   });
 
   it("extracts trade target from env (market prioritized over food)", () => {
-     const envWithMarketAndFood = { ...defaultEnv, nearby: { people: [], food: { id: "food-1", label: "Food", position: { x: 10, y: 10 } }, market: { id: "market-1", label: "Market", position: { x: 20, y: 20 } } } };
+     const envWithMarketAndFood = { ...defaultEnv, nearby: { ...defaultEnv.nearby, food: { id: "food-1", kind: "bakery" as const, label: "Food", position: { x: 10, y: 10 } }, market: { id: "market-1", kind: "market" as const, label: "Market", position: { x: 20, y: 20 } } } };
      const candidates = buildDecisionCandidates(defaultNpc, envWithMarketAndFood);
      expect(candidates.find(c => c.type === "trade")?.target).toEqual({ id: "market-1", kind: "location", position: { x: 20, y: 20 }, label: "Market" });
   });
 
   it("extracts social target from env (person prioritized over plaza)", () => {
-     const envWithPersonAndPlaza = { ...defaultEnv, nearby: { people: [{ id: "person-1", name: "Person 1", position: { x: 1, y: 1 } }], plaza: { id: "plaza-1", label: "Plaza", position: { x: 10, y: 10 } } } };
+     const envWithPersonAndPlaza = { ...defaultEnv, nearby: { ...defaultEnv.nearby, people: [{ id: "person-1", name: "Person 1", position: { x: 1, y: 1 }, role: "farmer" as const }], plaza: { id: "plaza-1", kind: "plaza" as const, label: "Plaza", position: { x: 10, y: 10 } } } };
      const candidates = buildDecisionCandidates(defaultNpc, envWithPersonAndPlaza);
      expect(candidates.find(c => c.type === "social")?.target).toEqual({ id: "person-1", kind: "npc", position: { x: 1, y: 1 }, label: "Person 1" });
   });
 
   it("extracts social target from env (plaza fallback)", () => {
-     const envWithPlaza = { ...defaultEnv, nearby: { people: [], plaza: { id: "plaza-1", label: "Plaza", position: { x: 10, y: 10 } } } };
+     const envWithPlaza = { ...defaultEnv, nearby: { ...defaultEnv.nearby, plaza: { id: "plaza-1", kind: "plaza" as const, label: "Plaza", position: { x: 10, y: 10 } } } };
      const candidates = buildDecisionCandidates(defaultNpc, envWithPlaza);
      expect(candidates.find(c => c.type === "social")?.target).toEqual({ id: "plaza-1", kind: "location", position: { x: 10, y: 10 }, label: "Plaza" });
   });

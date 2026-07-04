@@ -119,12 +119,12 @@ describe("town presentation helpers", () => {
     expect(presented.id).toBe("lantern-hollow");
     expect(presented.timeOfDay).toBe("Evening wind-down");
     expect(presented.weather).toBe("Soft rain");
-    expect(presented.activityFeed[0]).toEqual({
+    expect(presented.activityFeed![0]).toEqual({
       id: "event-plan-assigned",
       label: "Juno picked up a fresh social plan.",
       tone: "good",
     });
-    expect(presented.activityFeed[1]?.tone).toBe("alert");
+    expect(presented.activityFeed![1]?.tone).toBe("alert");
     expect(mira?.currentAction).toBe("gathering wood");
     expect(mira?.summary).toContain("gathering wood");
     expect(juno?.currentAction).toBe("planning social");
